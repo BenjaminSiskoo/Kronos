@@ -45,6 +45,11 @@ UIDebugSCSP::UIDebugSCSP( QWidget* p )
       pteCommonControlRegisters->moveCursor(QTextCursor::Start);
    }
 
+   refreshWatchList();
+
+   autoRefreshTimer = new QTimer(this);
+   connect(autoRefreshTimer, &QTimer::timeout, this, &UIDebugSCSP::autoRefreshTick);
+
 #ifdef HAVE_QT_MULTIMEDIA
 	audioBufferTimer = new QTimer(this);
 	audioDeviceInfo = QAudioDeviceInfo::defaultOutputDevice();
@@ -146,11 +151,18 @@ void UIDebugSCSP::stateChanged(QAudio::State state)
 
 void UIDebugSCSP::on_sbSlotNumber_valueChanged ( int i )
 {
-   // Update Sound Slot Info
+   Q_UNUSED(i);
+   refreshSlotInfo();
+}
+
+// Etait duplique en ligne dans on_sbSlotNumber_valueChanged() ; extrait
+// pour etre reutilisable par le timer d'auto-refresh ci-dessous.
+void UIDebugSCSP::refreshSlotInfo()
+{
    char tempstr[2048];
    if (HighWram)
    {
-      ScspSlotDebugStats(i, tempstr);
+      ScspSlotDebugStats(sbSlotNumber->value(), tempstr);
       pteSlotInfo->clear();
       pteSlotInfo->appendPlainText(tempstr);
       pteSlotInfo->moveCursor(QTextCursor::Start);
@@ -162,6 +174,24 @@ void UIDebugSCSP::on_sbSlotNumber_valueChanged ( int i )
       pbSaveAsWav->setEnabled(false);
       pbSaveSlotRegisters->setEnabled(false);
    }
+}
+
+// Ajoute : rafraichissement automatique du slot affiche. Manquait
+// completement -- il fallait auparavant changer manuellement de slot
+// (meme pour revenir au meme numero) pour forcer une relecture, ce qui
+// rendait impossible d'observer en direct une enveloppe/attenuation qui
+// evolue pendant qu'on joue.
+void UIDebugSCSP::on_cbAutoRefresh_toggled ( bool checked )
+{
+   if (checked)
+      autoRefreshTimer->start(250); // 4x/s : assez reactif sans spammer l'UI
+   else
+      autoRefreshTimer->stop();
+}
+
+void UIDebugSCSP::autoRefreshTick()
+{
+   refreshSlotInfo();
 }
 
 #ifdef HAVE_QT_MULTIMEDIA
@@ -191,7 +221,7 @@ void UIDebugSCSP::on_pbSaveAsWav_clicked ()
 	// request a file to save to to user
    QString text;
    
-   text.sprintf("channel%02d.wav", sbSlotNumber->value());
+   text = QString::asprintf("channel%02d.wav", sbSlotNumber->value());
 	const QString s = CommonDialogs::getSaveFileName(text, QtYabause::translate( "Choose a location for your wav file" ), QtYabause::translate( "WAV Files (*.wav)" ) );
 	
 	// write image if ok
@@ -226,4 +256,69 @@ void UIDebugSCSP::on_pbExportSoundRam_clicked ()
 	if ( !s.isEmpty() )
 		if (ScspSaveSoundRam(s.toLatin1()) != 0)
 			CommonDialogs::error( QtYabause::translate( "An error occured while writing file." ) );
+}
+
+// Etat du bloc CD (voir Cs2SaveDebugReport, cs2.c) -- pas de fenetre de
+// debug dediee au bloc CD pour l'instant, place ici car deja le point
+// central du debug audio et directement utile quand la musique CD-DA
+// specifiquement reste muette alors que le mixage SCSP est correct.
+void UIDebugSCSP::on_pbExportCs2Report_clicked ()
+{
+	const QString s = CommonDialogs::getSaveFileName( QString(), QtYabause::translate( "Choose a location for your report" ), QtYabause::translate( "Text Files (*.txt)" ) );
+	if ( !s.isEmpty() )
+		if (Cs2SaveDebugReport(s.toLatin1()) != 0)
+			CommonDialogs::error( QtYabause::translate( "An error occured while writing file." ) );
+}
+
+void UIDebugSCSP::refreshWatchList()
+{
+	lwWatchedAddresses->clear();
+	int n = ScspGetRegisterWatchCount();
+	for (int i = 0; i < n; i++)
+	{
+		u32 addr = ScspGetRegisterWatchAddr(i);
+		lwWatchedAddresses->addItem(QString("0x%1").arg(addr, 3, 16, QChar('0')).toUpper());
+	}
+}
+
+// Watch generique de registres : voir ScspAddRegisterWatch/ScspSaveRegisterWatchLog
+// (scsp.c). Remplace l'ancien watch code en dur limite a EFSDL des slots
+// 16/17 -- utilisable sur n'importe quel registre SCSP (slot ou commun).
+void UIDebugSCSP::on_pbWatchAdd_clicked ()
+{
+	bool ok = false;
+	u32 addr = leWatchAddress->text().toUInt(&ok, 16);
+	if (!ok)
+	{
+		CommonDialogs::information( QtYabause::translate( "Enter an address in hexadecimal, e.g. 216 for slot 16's EFSDL/EFPAN register, or 400 for MVOL." ) );
+		return;
+	}
+	if (ScspAddRegisterWatch(addr) != 0)
+		CommonDialogs::information( QtYabause::translate( "Could not add this watch (already watched, or the maximum of 8 simultaneous watches was reached)." ) );
+	refreshWatchList();
+}
+
+void UIDebugSCSP::on_pbWatchDel_clicked ()
+{
+	QListWidgetItem *item = lwWatchedAddresses->currentItem();
+	if (!item)
+		return;
+	bool ok = false;
+	u32 addr = item->text().mid(2).toUInt(&ok, 16); // enleve le prefixe "0x"
+	if (ok)
+		ScspDelRegisterWatch(addr);
+	refreshWatchList();
+}
+
+void UIDebugSCSP::on_pbWatchExportLog_clicked ()
+{
+	const QString s = CommonDialogs::getSaveFileName( QString(), QtYabause::translate( "Choose a location for your log file" ), QtYabause::translate( "Text Files (*.txt)" ) );
+	if ( !s.isEmpty() )
+		if (ScspSaveRegisterWatchLog(s.toLatin1()) != 0)
+			CommonDialogs::error( QtYabause::translate( "An error occured while writing file." ) );
+}
+
+void UIDebugSCSP::on_pbWatchClearLog_clicked ()
+{
+	ScspClearRegisterWatchLog();
 }
