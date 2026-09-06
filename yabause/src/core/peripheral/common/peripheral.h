@@ -408,6 +408,177 @@ void PerGunMove(PerGun_struct * gun, s32 dispx, s32 dispy);
 #define PERJAMMA_TRACKBALL_LEFT  55
 #define PERJAMMA_TRACKBALL_RIGHT 56
 
+/* Sega Mahjong Panel (used by "Pro Mahjong Kiwame S" / kiwames [2P],
+   "Virtual Mahjong" / vmahjong [1P] and "Virtual Mahjong 2 - My Fair
+   Lady" / myfairld [1P]). Unlike the JAMMA cabinet controls above, this
+   is a 5x8-bit row-scanned key matrix: the game selects one or more of
+   5 rows via a mux register on PORT-E, then reads the ANDed row byte(s)
+   back through the normal P1 (PORT-A) / P2 (PORT-B) locations while
+   panel mode is active. See PerMahjongPanelEnabled(), IOPortReadByte()
+   and IOPortWriteByte() in peripheral.c, which mirror MAME's sega/stv.cpp
+   stvmp_ioga_r()/stvmp_ioga_w() and the INPUT_PORTS_START(stvmp)/
+   (vmahjong)/(myfairld) tables bit-for-bit:
+     KEY0: Kan, Start, -, -, E, A, M, I
+     KEY1: Reach, Bet, -, -, F, B, N, J
+     KEY2: Ron,  -,   -, -, G, C, Chi, K
+     KEY3: -,    -,   -, -, H, D, Pon, L
+     KEY4: -,    -,   -, -, -, -, FlipFlop, -
+   Bet is only wired on the single-player panel (vmahjong/myfairld); Kan/
+   Reach/Ron/Chi/Pon/FlipFlop/Start are wired for both P1 and P2 on the
+   two-player panel (kiwames). A row/bit combination the loaded game
+   doesn't actually wire is simply never read by its code, so binding it
+   is harmless either way. */
+/* Player 1 side */
+#define PERMAHJONG_KAN          57
+#define PERMAHJONG_START        58
+#define PERMAHJONG_E            59
+#define PERMAHJONG_A            60
+#define PERMAHJONG_M            61
+#define PERMAHJONG_I            62
+#define PERMAHJONG_REACH        63
+#define PERMAHJONG_BET          64
+#define PERMAHJONG_F            65
+#define PERMAHJONG_B            66
+#define PERMAHJONG_N            67
+#define PERMAHJONG_J            68
+#define PERMAHJONG_RON          69
+#define PERMAHJONG_G            70
+#define PERMAHJONG_C            71
+#define PERMAHJONG_CHI          72
+#define PERMAHJONG_K            73
+#define PERMAHJONG_H            74
+#define PERMAHJONG_D            75
+#define PERMAHJONG_PON          76
+#define PERMAHJONG_L            77
+#define PERMAHJONG_FLIP_FLOP    78
+/* Player 2 side */
+#define PERMAHJONG_P2_KAN       79
+#define PERMAHJONG_P2_START     80
+#define PERMAHJONG_P2_E         81
+#define PERMAHJONG_P2_A         82
+#define PERMAHJONG_P2_M         83
+#define PERMAHJONG_P2_I         84
+#define PERMAHJONG_P2_REACH     85
+#define PERMAHJONG_P2_F         86
+#define PERMAHJONG_P2_B         87
+#define PERMAHJONG_P2_N         88
+#define PERMAHJONG_P2_J         89
+#define PERMAHJONG_P2_RON       90
+#define PERMAHJONG_P2_G         91
+#define PERMAHJONG_P2_C         92
+#define PERMAHJONG_P2_CHI       93
+#define PERMAHJONG_P2_K         94
+#define PERMAHJONG_P2_H         95
+#define PERMAHJONG_P2_D         96
+#define PERMAHJONG_P2_PON       97
+#define PERMAHJONG_P2_L         98
+#define PERMAHJONG_P2_FLIP_FLOP 99
+
+// The true numeric bounds of the whole PERMAHJONG_* range, for code that
+// needs to tell "is this a Mahjong Panel key?" apart from a JAMMA/pad key
+// by range-check (see libretro.c and YabauseThread.cpp) - PERMAHJONG_KAN
+// (57), not PERMAHJONG_A (60), is actually the smallest value here, so
+// don't use PERMAHJONG_A as the lower bound.
+#define PERMAHJONG_FIRST PERMAHJONG_KAN
+#define PERMAHJONG_LAST  PERMAHJONG_P2_FLIP_FLOP
+
+typedef u8 PerMahjongPanel_struct;
+
+/** @brief Connects the Sega Mahjong Panel (both P1 and P2 sides share the
+ *  single controller this returns, exactly like PerCabAdd()'s cabinet).
+ *
+ * @param port unused, kept for consistency with PerCabAdd().
+ * @return pointer to a PerMahjongPanel_struct.
+ * */
+PerMahjongPanel_struct * PerMahjongAdd(PortData_struct * port);
+
+void PerMahjongP1KanPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP1KanReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP1StartPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP1StartReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP1EPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP1EReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP1APressed(PerMahjongPanel_struct * mj);
+void PerMahjongP1AReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP1MPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP1MReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP1IPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP1IReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP1ReachPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP1ReachReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP1BetPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP1BetReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP1FPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP1FReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP1BPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP1BReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP1NPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP1NReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP1JPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP1JReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP1RonPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP1RonReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP1GPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP1GReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP1CPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP1CReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP1ChiPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP1ChiReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP1KPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP1KReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP1HPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP1HReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP1DPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP1DReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP1PonPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP1PonReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP1LPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP1LReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP1FlipFlopPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP1FlipFlopReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP2KanPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP2KanReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP2StartPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP2StartReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP2EPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP2EReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP2APressed(PerMahjongPanel_struct * mj);
+void PerMahjongP2AReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP2MPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP2MReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP2IPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP2IReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP2ReachPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP2ReachReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP2FPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP2FReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP2BPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP2BReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP2NPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP2NReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP2JPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP2JReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP2RonPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP2RonReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP2GPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP2GReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP2CPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP2CReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP2ChiPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP2ChiReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP2KPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP2KReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP2HPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP2HReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP2DPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP2DReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP2PonPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP2PonReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP2LPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP2LReleased(PerMahjongPanel_struct * mj);
+void PerMahjongP2FlipFlopPressed(PerMahjongPanel_struct * mj);
+void PerMahjongP2FlipFlopReleased(PerMahjongPanel_struct * mj);
+
 typedef u8 PerCab_struct;
 
 PerCab_struct * PerCabAdd(PortData_struct * port);
