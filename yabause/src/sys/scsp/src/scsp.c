@@ -4083,12 +4083,433 @@ scsp_midi_out_read (void)
 }
 
 ////////////////////////////////////////////////////////////////
+// Generic SCSP register watch
+//
+// UIDebugSCSP.cpp already called ScspAddRegisterWatch() & co, but nothing in
+// the core ever defined them, so the Qt port failed to link. Implemented here
+// rather than in the UI because the only place every register write can be
+// observed -- whoever issues it: SH2 through scsp_w_*, sound CPU through
+// c68k_byte_write/c68k_word_write, SCU DMA -- is the scsp_w_b/w_w/w_d funnel
+// just below.
+//
+// Threading note: in Kronos the SCSP runs on its own thread (YAB_THREAD_SCSP,
+// see ScspAsynMainCpu), so register writes and the UI reading the log really
+// do come from different threads; the watch list and the ring buffer are
+// therefore protected by a mutex. The hot path is guarded by a plain flag
+// read so that the mutex is only ever taken when at least one watch is armed,
+// which keeps the cost of the feature at zero when it is not used.
+
+typedef struct
+{
+  u32 addr;
+  u32 last_value;
+  int has_last;
+} scspregwatch_struct;
+
+typedef struct
+{
+  u32 addr;
+  u32 old_value;
+  u32 new_value;
+  int has_old;
+  int size;        // 1, 2 or 4 bytes, as issued by the writer
+  int sample;      // value of scsp_sample_count when the write happened
+} scspregwatchlog_struct;
+
+static scspregwatch_struct scsp_reg_watch[SCSP_MAX_REGISTER_WATCHES];
+static int scsp_reg_watch_count = 0;
+static volatile int scsp_reg_watch_active = 0;
+
+static scspregwatchlog_struct scsp_reg_watch_log[SCSP_REGISTER_WATCH_LOG_SIZE];
+static int scsp_reg_watch_log_head = 0;   // next entry to be written
+static int scsp_reg_watch_log_used = 0;   // entries currently held (<= LOG_SIZE)
+static int scsp_reg_watch_log_lost = 0;   // entries dropped because the ring wrapped
+
+static YabMutex *scsp_reg_watch_mtx = NULL;
+
+////////////////////////////////////////////////////////////////
+
+static void
+ScspRegisterWatchInit (void)
+{
+  if (scsp_reg_watch_mtx == NULL)
+    scsp_reg_watch_mtx = YabThreadCreateMutex();
+}
+
+////////////////////////////////////////////////////////////////
+
+static void
+ScspRegisterWatchDeInit (void)
+{
+  if (scsp_reg_watch_mtx != NULL)
+    {
+      YabThreadFreeMutex(scsp_reg_watch_mtx);
+      scsp_reg_watch_mtx = NULL;
+    }
+  scsp_reg_watch_active = 0;
+  scsp_reg_watch_count = 0;
+  scsp_reg_watch_log_head = 0;
+  scsp_reg_watch_log_used = 0;
+  scsp_reg_watch_log_lost = 0;
+}
+
+////////////////////////////////////////////////////////////////
+
+void
+ScspGetRegisterName (u32 addr, char *outstring, size_t maxlen)
+{
+  // Byte-offset granularity: the SCSP packs several fields per byte, and the
+  // slot layout below is exactly the one scsp_slot_set_b/scsp_slot_set_w
+  // decode, so the names stay in sync with what this emulator implements.
+  static const char *slotnames[0x20] =
+  {
+    "KYONEX/KYONB/SBCTL/SSCTL", "SSCTL/LPCTL/PCM8B/SA19-16",
+    "SA15-8",                   "SA7-0",
+    "LSA15-8",                  "LSA7-0",
+    "LEA15-8",                  "LEA7-0",
+    "D2R/D1R",                  "D1R/EGHOLD/AR",
+    "LPSLNK/KRS/DL",            "DL/RR",
+    "STWINH/SDIR",              "TL",
+    "MDL/MDXSL",                "MDXSL/MDYSL",
+    "OCT/FNS",                  "FNS",
+    "LFORE/LFOF/PLFOWS",        "PLFOS/ALFOWS/ALFOS",
+    "(unused)",                 "ISEL/OMXL",
+    "DISDL/DIPAN",              "EFSDL/EFPAN",
+    "(unused)", "(unused)", "(unused)", "(unused)",
+    "(unused)", "(unused)", "(unused)", "(unused)"
+  };
+  static const char *commonnames[0x40] =
+  {
+    "MEM4MB/DAC18B",  "VER/MVOL",
+    "RBL(high)",      "RBL/RBP",
+    "MIDI flags",     "MIBUF",
+    "MOBUF(high)",    "MOBUF",
+    "MSLC",           "CA/SGC/EG",
+    "(unused)", "(unused)", "(unused)", "(unused)", "(unused)", "(unused)",
+    "(unused)", "(unused)",
+    "DMEAL(high)",    "DMEAL(low)",
+    "DMEAH(high)",    "DMEAH/DRGA",
+    "DGATE/DDIR/DEXE/DTLG", "DTLG(low)",
+    "TACTL",          "TIMA",
+    "TBCTL",          "TIMB",
+    "TCCTL",          "TIMC",
+    "SCIEB(high)",    "SCIEB(low)",
+    "SCIPD(high)",    "SCIPD(low)",
+    "SCIRE(high)",    "SCIRE(low)",
+    "SCILV0(high)",   "SCILV0",
+    "SCILV1(high)",   "SCILV1",
+    "SCILV2(high)",   "SCILV2",
+    "MCIEB(high)",    "MCIEB(low)",
+    "MCIPD(high)",    "MCIPD(low)",
+    "MCIRE(high)",    "MCIRE(low)",
+    "(unused)", "(unused)", "(unused)", "(unused)",
+    "(unused)", "(unused)", "(unused)", "(unused)",
+    "(unused)", "(unused)", "(unused)", "(unused)",
+    "(unused)", "(unused)", "(unused)", "(unused)"
+  };
+
+  if (outstring == NULL || maxlen == 0)
+    return;
+
+  if (addr < 0x400)
+    {
+      // Slot 16 and 17 carry the CD-DA left/right channels (Technical
+      // Bulletin #29), worth spelling out since a muted CD-DA track is one of
+      // the most common reasons to arm a watch here.
+      u32 slot = addr >> 5;
+      const char *extra = "";
+      if (slot == 16) extra = " [CD-DA left]";
+      else if (slot == 17) extra = " [CD-DA right]";
+      snprintf(outstring, maxlen, "Slot %u %s%s", (unsigned)slot,
+               slotnames[addr & 0x1F], extra);
+    }
+  else if (addr <= SCSP_REGISTER_WATCH_MAX_ADDR)
+    snprintf(outstring, maxlen, "Common %s", commonnames[addr & 0x3F]);
+  else if (addr >= 0x700 && addr < 0x780)
+    snprintf(outstring, maxlen, "DSP COEF[%u]", (unsigned)((addr - 0x700) / 2));
+  else if (addr >= 0x780 && addr < 0x7C0)
+    snprintf(outstring, maxlen, "DSP MADRS[%u]", (unsigned)((addr - 0x780) / 2));
+  else if (addr >= 0x800 && addr < 0xC00)
+    snprintf(outstring, maxlen, "DSP MPRO[%u]", (unsigned)((addr - 0x800) / 8));
+  else
+    snprintf(outstring, maxlen, "(unknown register area)");
+
+  outstring[maxlen - 1] = '\0';
+}
+
+////////////////////////////////////////////////////////////////
+
+int
+ScspAddRegisterWatch (u32 addr)
+{
+  int i;
+  int ret = 0;
+
+  if (addr > SCSP_REGISTER_WATCH_MAX_ADDR)
+    return -1;
+
+  ScspRegisterWatchInit();
+  YabThreadLock(scsp_reg_watch_mtx);
+
+  if (scsp_reg_watch_count >= SCSP_MAX_REGISTER_WATCHES)
+    ret = -1;
+  else
+    {
+      for (i = 0; i < scsp_reg_watch_count; i++)
+        if (scsp_reg_watch[i].addr == addr)
+          ret = -1;
+
+      if (ret == 0)
+        {
+          scsp_reg_watch[scsp_reg_watch_count].addr = addr;
+          scsp_reg_watch[scsp_reg_watch_count].last_value = 0;
+          scsp_reg_watch[scsp_reg_watch_count].has_last = 0;
+          scsp_reg_watch_count++;
+          scsp_reg_watch_active = 1;
+        }
+    }
+
+  YabThreadUnLock(scsp_reg_watch_mtx);
+  return ret;
+}
+
+////////////////////////////////////////////////////////////////
+
+int
+ScspDelRegisterWatch (u32 addr)
+{
+  int i, j;
+  int ret = -1;
+
+  ScspRegisterWatchInit();
+  YabThreadLock(scsp_reg_watch_mtx);
+
+  for (i = 0; i < scsp_reg_watch_count; i++)
+    {
+      if (scsp_reg_watch[i].addr != addr)
+        continue;
+
+      for (j = i; j < scsp_reg_watch_count - 1; j++)
+        scsp_reg_watch[j] = scsp_reg_watch[j + 1];
+      scsp_reg_watch_count--;
+      scsp_reg_watch_active = (scsp_reg_watch_count > 0);
+      ret = 0;
+      break;
+    }
+
+  YabThreadUnLock(scsp_reg_watch_mtx);
+  return ret;
+}
+
+////////////////////////////////////////////////////////////////
+
+void
+ScspClearRegisterWatches (void)
+{
+  ScspRegisterWatchInit();
+  YabThreadLock(scsp_reg_watch_mtx);
+  scsp_reg_watch_count = 0;
+  scsp_reg_watch_active = 0;
+  YabThreadUnLock(scsp_reg_watch_mtx);
+}
+
+////////////////////////////////////////////////////////////////
+
+int
+ScspGetRegisterWatchCount (void)
+{
+  int ret;
+
+  ScspRegisterWatchInit();
+  YabThreadLock(scsp_reg_watch_mtx);
+  ret = scsp_reg_watch_count;
+  YabThreadUnLock(scsp_reg_watch_mtx);
+  return ret;
+}
+
+////////////////////////////////////////////////////////////////
+
+u32
+ScspGetRegisterWatchAddr (int index)
+{
+  u32 ret = 0xFFFFFFFF;
+
+  ScspRegisterWatchInit();
+  YabThreadLock(scsp_reg_watch_mtx);
+  if (index >= 0 && index < scsp_reg_watch_count)
+    ret = scsp_reg_watch[index].addr;
+  YabThreadUnLock(scsp_reg_watch_mtx);
+  return ret;
+}
+
+////////////////////////////////////////////////////////////////
+
+int
+ScspGetRegisterWatchLogCount (void)
+{
+  int ret;
+
+  ScspRegisterWatchInit();
+  YabThreadLock(scsp_reg_watch_mtx);
+  ret = scsp_reg_watch_log_used;
+  YabThreadUnLock(scsp_reg_watch_mtx);
+  return ret;
+}
+
+////////////////////////////////////////////////////////////////
+
+void
+ScspClearRegisterWatchLog (void)
+{
+  int i;
+
+  ScspRegisterWatchInit();
+  YabThreadLock(scsp_reg_watch_mtx);
+  scsp_reg_watch_log_head = 0;
+  scsp_reg_watch_log_used = 0;
+  scsp_reg_watch_log_lost = 0;
+  // Also forget the previous values, otherwise the first line logged after a
+  // clear would compare against a write that is no longer in the log.
+  for (i = 0; i < scsp_reg_watch_count; i++)
+    scsp_reg_watch[i].has_last = 0;
+  YabThreadUnLock(scsp_reg_watch_mtx);
+}
+
+////////////////////////////////////////////////////////////////
+
+int
+ScspSaveRegisterWatchLog (const char *filename)
+{
+  FILE *fp;
+  int i, start, used, lost;
+  char name[128];
+
+  if (filename == NULL)
+    return -1;
+
+  ScspRegisterWatchInit();
+
+  if ((fp = fopen(filename, "w")) == NULL)
+    return -1;
+
+  YabThreadLock(scsp_reg_watch_mtx);
+
+  used = scsp_reg_watch_log_used;
+  lost = scsp_reg_watch_log_lost;
+  start = (scsp_reg_watch_log_head - used + SCSP_REGISTER_WATCH_LOG_SIZE)
+          % SCSP_REGISTER_WATCH_LOG_SIZE;
+
+  fprintf(fp, "SCSP register watch log\n");
+  fprintf(fp, "%d entr%s recorded", used, used == 1 ? "y" : "ies");
+  if (lost)
+    fprintf(fp, ", %d older entr%s dropped (ring buffer holds %d)",
+            lost, lost == 1 ? "y" : "ies", SCSP_REGISTER_WATCH_LOG_SIZE);
+  fprintf(fp, "\n\n");
+  fprintf(fp, "Watched addresses:\n");
+  for (i = 0; i < scsp_reg_watch_count; i++)
+    {
+      ScspGetRegisterName(scsp_reg_watch[i].addr, name, sizeof(name));
+      fprintf(fp, "  0x%03X  %s\n", (unsigned)scsp_reg_watch[i].addr, name);
+    }
+  fprintf(fp, "\n");
+  fprintf(fp, "%-10s %-6s %-4s %-9s %-9s %s\n",
+          "sample", "addr", "size", "old", "new", "register");
+  fprintf(fp, "-------------------------------------------------------------------\n");
+
+  for (i = 0; i < used; i++)
+    {
+      const scspregwatchlog_struct *e =
+        &scsp_reg_watch_log[(start + i) % SCSP_REGISTER_WATCH_LOG_SIZE];
+
+      ScspGetRegisterName(e->addr, name, sizeof(name));
+      fprintf(fp, "%-10d 0x%03X  %-4d ", e->sample, (unsigned)e->addr, e->size);
+      if (e->has_old)
+        fprintf(fp, "0x%-7X ", (unsigned)e->old_value);
+      else
+        fprintf(fp, "%-9s ", "--");
+      fprintf(fp, "0x%-7X %s\n", (unsigned)e->new_value, name);
+    }
+
+  YabThreadUnLock(scsp_reg_watch_mtx);
+
+  fclose(fp);
+  return 0;
+}
+
+////////////////////////////////////////////////////////////////
+// Called from scsp_w_b/scsp_w_w/scsp_w_d for every register write. "size" is
+// the width of the write in bytes, so that a watch set on a word address also
+// catches the byte writes the sound driver may use on either half of it --
+// Technical Bulletin #29 for instance sets slot 16's EFSDL/EFPAN with a byte
+// write to 0x217, which must show up on a watch armed at 0x216.
+
+static void
+ScspRegisterWatchNotify (u32 a, u32 d, int size)
+{
+  int i;
+
+  if (!scsp_reg_watch_active)
+    return;
+
+  YabThreadLock(scsp_reg_watch_mtx);
+
+  for (i = 0; i < scsp_reg_watch_count; i++)
+    {
+      u32 w = scsp_reg_watch[i].addr;
+      u32 value;
+      int hit;
+      scspregwatchlog_struct *e;
+
+      switch (size)
+        {
+        case 1:
+          hit = (w == a) || (w == (a & ~(u32)1));
+          value = d & 0xFF;
+          break;
+        case 2:
+          hit = (w == a) || (w == a + 1);
+          value = d & 0xFFFF;
+          break;
+        default:
+          hit = (w >= a) && (w < a + 4);
+          value = d;
+          break;
+        }
+
+      if (!hit)
+        continue;
+
+      e = &scsp_reg_watch_log[scsp_reg_watch_log_head];
+      e->addr = w;
+      e->size = size;
+      e->new_value = value;
+      e->old_value = scsp_reg_watch[i].last_value;
+      e->has_old = scsp_reg_watch[i].has_last;
+      e->sample = scsp_sample_count;
+
+      scsp_reg_watch[i].last_value = value;
+      scsp_reg_watch[i].has_last = 1;
+
+      scsp_reg_watch_log_head =
+        (scsp_reg_watch_log_head + 1) % SCSP_REGISTER_WATCH_LOG_SIZE;
+      if (scsp_reg_watch_log_used < SCSP_REGISTER_WATCH_LOG_SIZE)
+        scsp_reg_watch_log_used++;
+      else
+        scsp_reg_watch_log_lost++;
+    }
+
+  YabThreadUnLock(scsp_reg_watch_mtx);
+}
+
+////////////////////////////////////////////////////////////////
 // Access
 
 void FASTCALL
 scsp_w_b (SH2_struct *context, UNUSED u8* m, u32 a, u8 d)
 {
   a &= 0xFFF;
+
+  ScspRegisterWatchNotify(a, d, 1);
 
   if (a < 0x400)
     {
@@ -4199,6 +4620,8 @@ scsp_w_w (SH2_struct *context, UNUSED u8* m, u32 a, u16 d)
 
   a &= 0xFFE;
 
+  ScspRegisterWatchNotify(a, d, 2);
+
   if (a < 0x400)
     {
       *(u16 *)&scsp_isr[a ^ 2] = d;
@@ -4277,6 +4700,8 @@ scsp_w_d (SH2_struct *context, UNUSED u8* m, u32 a, u32 d)
     }
 
   a &= 0xFFC;
+
+  ScspRegisterWatchNotify(a, d, 4);
 
   if (a < 0x400)
     {
@@ -4545,6 +4970,8 @@ scsp_init (u8 *scsp_ram, void (*sint_hand)(u32), void (*mint_hand)(void))
   scsp_isr = &scsp_reg[0x0000];
   scsp_ccr = &scsp_reg[0x0400];
   scsp_dcr = &scsp_reg[0x0700];
+
+  ScspRegisterWatchInit();
 
   scsp.scsp_ram = scsp_ram;
   scsp.sintf = sint_hand;
@@ -5062,6 +5489,8 @@ ScspDeInit (void)
   SNDCore = NULL;
 
   scsp_shutdown();
+
+  ScspRegisterWatchDeInit();
 
   if (SoundRam)
     T2MemoryDeInit (SoundRam);
