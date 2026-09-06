@@ -21,7 +21,9 @@ int STVDeInit();
 #define MAX_LENGTH_FILENAME 128
 #define MAX_LENGTH_FILEPATH 1024
 
-// Only STV & STV6B are properly hooked at the moment, the others might require tweaks
+// STV, STV6B, STVMP, VMAHJONG and MYFAIRLD are properly hooked at the
+// moment (the last three via the Sega Mahjong Panel - see PERMAHJONG_A in
+// peripheral.h). The others might require tweaks.
 typedef enum{
   STV,
   STV6B,
@@ -31,7 +33,12 @@ typedef enum{
   MICROMBC,
   MYFAIRLD,
   PATOCAR,
-  VMAHJONG
+  VMAHJONG,
+  // danchih (Danchi de Hanafuda) uses a *different* row-scan mux scheme
+  // from the Mahjong Panel above (see the PORT_DIRECTION bit 0x08 comment
+  // in peripheral.c) - keep it as its own type so it doesn't get treated
+  // as a Mahjong Panel game by mistake. Still unhooked/unimplemented.
+  STVHANAFUDA
 } inputType;
 
 typedef enum{
