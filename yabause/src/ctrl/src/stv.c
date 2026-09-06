@@ -32,7 +32,7 @@ extern "C" {
 //YuiMsg
 #define ROTATED 1
 
-#define NB_STV_GAMES 106
+#define NB_STV_GAMES 111
 
 GameLink availableGames[NB_STV_GAMES];
 BiosLink biosLink;
@@ -361,7 +361,7 @@ Game GameList[NB_STV_GAMES]={
         GAME_WORD_BLOB, "mpr21973.5",    0x1000000, 0x0400000, 0xb0f23f14,
         GAME_END, "", 0, 0, 0
     },
-    STVMP, /* FIX: mahjong-panel game, was STV */
+    STVHANAFUDA, /* Hanafuda panel, different row-scan mux from Mahjong Panel - see stv.h */
   },
   {
     "danchiq",
@@ -1694,7 +1694,7 @@ Game GameList[NB_STV_GAMES]={
         EEPROM_BLOB,	"kiwames.nv",	0x0000, 0x0080, 0xc7002732,
         GAME_END, "", 0, 0, 0
     },
-    STVMP, /* FIX: mahjong-panel game, was STV */
+    STVMP, /* Sega Mahjong Panel (2P) - see PERMAHJONG_A in peripheral.h */
   },
   {
     "puyosun",
@@ -2493,6 +2493,107 @@ Game GameList[NB_STV_GAMES]={
         GAME_WORD_BLOB, "mpr20435.11", 0x2800000, 0x0400000, 0x263a2e48,
         GAME_WORD_BLOB, "mpr20436.12", 0x2c00000, 0x0400000, 0xe3823f49,
         EEPROM_BLOB,    "findlove.nv", 0x0000, 0x0080, 0xdf2fa9f6,
+        GAME_END, "", 0, 0, 0
+    },
+    STV,
+  },
+  {
+    "aclub",
+    NULL,
+    "Aroma Club (J 970611 V1.000)",
+    STV_REGION_JP,
+    0,
+    0,
+    NULL,
+    NV_1P,
+    {
+        GAME_WORD_BLOB, "lh28f016sut.ic22",	0x0200000, 0x0200000, 0x1d6fc99d,
+        GAME_WORD_BLOB, "lh28f016sut.ic24",	0x0400000, 0x0200000, 0x65502690,
+        GAME_WORD_BLOB, "lh28f016sut.ic26",	0x0600000, 0x0200000, 0xed530d76,
+        GAME_WORD_BLOB, "lh28f016sut.ic28",	0x0800000, 0x0200000, 0x1c6a7967,
+        GAME_WORD_BLOB, "lh28f016sut.ic30",	0x0a00000, 0x0200000, 0x4b7e36d1,
+        GAME_END, "", 0, 0, 0
+    },
+    STV,
+  },
+  {
+    "pclub2mb",
+    NULL,
+    "Print Club 2 Mr. Bean (J 980325 V1.000)",
+    STV_REGION_JP,
+    0,
+    0,
+    NULL,
+    NV_1P,
+    {
+        GAME_WORD_BLOB, "ic22.bin",	0x0200000, 0x0200000, 0xd16683a9,
+        GAME_WORD_BLOB, "ic24.bin",	0x0400000, 0x0200000, 0x67eba65e,
+        GAME_WORD_BLOB, "ic26.bin",	0x0600000, 0x0200000, 0x05f5e4ff,
+        GAME_WORD_BLOB, "ic28.bin",	0x0800000, 0x0200000, 0xb7fcaa7c,
+        GAME_WORD_BLOB, "ic30.bin",	0x0a00000, 0x0200000, 0x7de3ee3c,
+        GAME_END, "", 0, 0, 0
+    },
+    STV,
+  },
+  {
+    "pclubsc5",
+    NULL,
+    "Print Club Sony Creative Ver.5 (J 980721 V1.000)",
+    STV_REGION_JP,
+    0,
+    0,
+    NULL,
+    NV_1P,
+    {
+        GAME_WORD_BLOB, "pclub2_ic22",	0x0200000, 0x0200000, 0xa0e5d77f,
+        GAME_WORD_BLOB, "pclub2_ic24",	0x0400000, 0x0200000, 0x6abf081f,
+        GAME_WORD_BLOB, "pclub2_ic26",	0x0600000, 0x0200000, 0x5118a889,
+        GAME_WORD_BLOB, "pclub2_ic28",	0x0800000, 0x0200000, 0xf29f1ec9,
+        GAME_WORD_BLOB, "pclub2_ic30",	0x0a00000, 0x0200000, 0xa6dc82c8,
+        GAME_WORD_BLOB, "pclub2_ic32",	0x0c00000, 0x0200000, 0xf29f1ec9,
+        EEPROM_BLOB,	"pclubsc5.nv",	0x0000, 0x0080, 0x5a01a17b,
+        GAME_END, "", 0, 0, 0
+    },
+    STV,
+  },
+  {
+    "pclubsc6",
+    NULL,
+    "Print Club Sony Creative Ver.6 (J 971006 V1.000)",
+    STV_REGION_JP,
+    0,
+    0,
+    NULL,
+    NV_1P,
+    {
+        GAME_WORD_BLOB, "ic22.bin",	0x0200000, 0x0200000, 0x754890c3,
+        GAME_WORD_BLOB, "ic24.bin",	0x0400000, 0x0200000, 0x9830393b,
+        GAME_WORD_BLOB, "ic26.bin",	0x0600000, 0x0200000, 0x6bec2559,
+        GAME_WORD_BLOB, "ic28.bin",	0x0800000, 0x0200000, 0x79a159e6,
+        GAME_WORD_BLOB, "ic30.bin",	0x0a00000, 0x0200000, 0x6533f7fc,
+        GAME_WORD_BLOB, "ic32.bin",	0x0c00000, 0x0200000, 0x048876e3,
+        GAME_END, "", 0, 0, 0
+    },
+    STV,
+  },
+  {
+    "wwshin",
+    NULL,
+    "Waku Waku Shinkansen (J 971031 V0.002)",
+    STV_REGION_JP,
+    0,
+    0,
+    NULL,
+    NV_1P,
+    {
+        GAME_WORD_BLOB, "ic22",	0x0200000, 0x0200000, 0x43f7cafc,
+        GAME_WORD_BLOB, "ic24",	0x0400000, 0x0200000, 0xdb560e59,
+        GAME_WORD_BLOB, "ic26",	0x0600000, 0x0200000, 0x2f411ff1,
+        GAME_WORD_BLOB, "ic28",	0x0800000, 0x0200000, 0xca5e0446,
+        GAME_WORD_BLOB, "ic30",	0x0a00000, 0x0200000, 0x2653f758,
+        GAME_WORD_BLOB, "ic32",	0x0c00000, 0x0200000, 0x8ebfd947,
+        GAME_WORD_BLOB, "ic34",	0x0e00000, 0x0200000, 0x22b7180f,
+        GAME_WORD_BLOB, "ic36",	0x1000000, 0x0200000, 0x5b83914c,
         GAME_END, "", 0, 0, 0
     },
     STV,
