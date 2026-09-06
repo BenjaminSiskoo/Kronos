@@ -30,6 +30,7 @@ class UIDebugSCSP : public QDialog, public Ui::UIDebugSCSP
 {
 	Q_OBJECT
 private:
+	QTimer *autoRefreshTimer;
 #ifdef HAVE_QT_MULTIMEDIA
 	QTimer *audioBufferTimer;
 
@@ -47,6 +48,10 @@ public:
 	UIDebugSCSP( QWidget* parent = 0 );
 	~UIDebugSCSP();
 
+private:
+	void refreshWatchList();
+	void refreshSlotInfo();
+
 #ifdef HAVE_QT_MULTIMEDIA
 protected:
 	void initAudio();
@@ -58,6 +63,13 @@ protected slots:
    void on_pbSaveSlotRegisters_clicked ();
    void on_pbExportFullReport_clicked ();
    void on_pbExportSoundRam_clicked ();
+   void on_pbExportCs2Report_clicked ();
+   void on_pbWatchAdd_clicked ();
+   void on_pbWatchDel_clicked ();
+   void on_pbWatchExportLog_clicked ();
+   void on_pbWatchClearLog_clicked ();
+   void on_cbAutoRefresh_toggled ( bool checked );
+   void autoRefreshTick();
 #ifdef HAVE_QT_MULTIMEDIA
 	void on_pbPlaySlot_clicked ();
 	void notified();
