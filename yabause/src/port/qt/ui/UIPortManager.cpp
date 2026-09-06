@@ -21,6 +21,7 @@
 #include "UIPadSetting.h"
 #include "UISTVSetting.h"
 #include "UIPatocarSetting.h"
+#include "UIMahjongSetting.h"
 #include "UI3DControlPadSetting.h"
 #include "UIWheelSetting.h"
 #include "UIMissionStickSetting.h"
@@ -42,6 +43,7 @@ buttonid = key & 0xFFFF;
 const QString UIPortManager::mSettingsKey = "Input/Port/%1/Id/%2/Controller/%3/Key/%4";
 const QString UIPortManager::mSettingsType = "Input/Port/%1/Id/%2/Type";
 const QString UIPortManager::mSettingsHopperUI = "Input/Port/%1/Id/%2/HopperCabinetUI";
+const QString UIPortManager::mSettingsMahjongUI = "Input/Port/%1/Id/%2/MahjongPanelUI";
 
 UIPortManager::UIPortManager( QWidget* parent )
 	: QGroupBox( parent )
@@ -63,6 +65,7 @@ UIPortManager::UIPortManager( QWidget* parent )
 		cb->addItem( QtYabause::translate( "Mouse" ), PERMOUSE );
                 cb->addItem( QtYabause::translate( "ST-V Cabinet" ), PERCABINET );
                 cb->addItem( QtYabause::translate( "Hopper Cabinet" ), PERCABINET_HOPPER ); // same peripheral as ST-V Cabinet, opens patocar/skychal/supgoal/techbowl/micrombc's dedicated dialog directly
+                cb->addItem( QtYabause::translate( "Mahjong Panel" ), PERCABINET_MAHJONG ); // same peripheral as ST-V Cabinet, opens kiwames/vmahjong/myfairld's dedicated dialog directly
 
 		connect( cb, SIGNAL( currentIndexChanged( int ) ), this, SLOT( cbTypeController_currentIndexChanged( int ) ) );
 	}
@@ -141,10 +144,13 @@ void UIPortManager::loadSettings()
 	{
 		uint type = settings->value( QString( mSettingsType ).arg( mPort ).arg( id ) ).toUInt();
 		// mSettingsType always holds the real PERCABINET value (see
-		// cbTypeController_currentIndexChanged) - mSettingsHopperUI is
-		// what tells us whether "Hopper Cabinet" was the one picked.
+		// cbTypeController_currentIndexChanged) - mSettingsHopperUI/
+		// mSettingsMahjongUI are what tell us whether "Hopper Cabinet" or
+		// "Mahjong Panel" was the one picked.
 		if ( type == PERCABINET && settings->value( QString( mSettingsHopperUI ).arg( mPort ).arg( id ), false ).toBool() )
 			type = PERCABINET_HOPPER;
+		else if ( type == PERCABINET && settings->value( QString( mSettingsMahjongUI ).arg( mPort ).arg( id ), false ).toBool() )
+			type = PERCABINET_MAHJONG;
 		QComboBox* cb = findChild<QComboBox*>( QString( "cbTypeController%1" ).arg( id ) );
 		cb->setCurrentIndex( cb->findData( type ) );
 	}
@@ -167,6 +173,7 @@ void UIPortManager::cbTypeController_currentIndexChanged( int id )
 		case PERMOUSE:
 		case PERCABINET:
 		case PERCABINET_HOPPER:
+		case PERCABINET_MAHJONG:
 			buttons.at( 0 )->setEnabled( true );
 			buttons.at( 1 )->setEnabled( true );
 			buttons.at( 2 )->setEnabled( true );
@@ -189,14 +196,17 @@ void UIPortManager::cbTypeController_currentIndexChanged( int id )
 	}
 
 	Settings* settings = QtYabause::settings();
-	// PERCABINET_HOPPER is UI-only sugar for "same cabinet peripheral, open
-	// the hopper dialog". YabauseThread.cpp reads this Type value directly
-	// with a switch() over real peripheral.h constants at emulation start,
-	// so always persist the real PERCABINET there; the dropdown choice
-	// itself is remembered separately via mSettingsHopperUI.
+	// PERCABINET_HOPPER/PERCABINET_MAHJONG are UI-only sugar for "same
+	// cabinet peripheral, open a different dialog". YabauseThread.cpp reads
+	// this Type value directly with a switch() over real peripheral.h
+	// constants at emulation start, so always persist the real PERCABINET
+	// there; the dropdown choice itself is remembered separately via
+	// mSettingsHopperUI/mSettingsMahjongUI.
 	const bool isHopperUI = ( type == PERCABINET_HOPPER );
-	settings->setValue( QString( mSettingsType ).arg( mPort ).arg( controllerId ), isHopperUI ? (uint)PERCABINET : type );
+	const bool isMahjongUI = ( type == PERCABINET_MAHJONG );
+	settings->setValue( QString( mSettingsType ).arg( mPort ).arg( controllerId ), ( isHopperUI || isMahjongUI ) ? (uint)PERCABINET : type );
 	settings->setValue( QString( mSettingsHopperUI ).arg( mPort ).arg( controllerId ), isHopperUI );
+	settings->setValue( QString( mSettingsMahjongUI ).arg( mPort ).arg( controllerId ), isMahjongUI );
 }
 
 void UIPortManager::tbSetJoystick_clicked()
@@ -231,6 +241,7 @@ void UIPortManager::tbSetJoystick_clicked()
 		}
 		case PERCABINET:
 		case PERCABINET_HOPPER:
+		case PERCABINET_MAHJONG:
 		{
 			QMap<uint, PerCab_struct*>& padsbits = *QtYabause::portIOBits( );
 
@@ -251,9 +262,20 @@ void UIPortManager::tbSetJoystick_clicked()
 
 			// Key bindings are stored/looked up under the real PERCABINET
 			// value (see cbTypeController_currentIndexChanged and
-			// YabauseThread.cpp), never under the PERCABINET_HOPPER
-			// sentinel - so always hand the dialogs the real type.
-			if ( type == PERCABINET_HOPPER || yabsys.stvInputType == PATOCAR || yabsys.stvInputType == MICROMBC )
+			// YabauseThread.cpp), never under the PERCABINET_HOPPER /
+			// PERCABINET_MAHJONG sentinels - so always hand the dialogs
+			// the real type.
+			if ( type == PERCABINET_MAHJONG || yabsys.stvInputType == STVMP || yabsys.stvInputType == VMAHJONG || yabsys.stvInputType == MYFAIRLD )
+			{
+				// "Mahjong Panel" was picked explicitly, or a Mahjong
+				// Panel game (kiwames/vmahjong/myfairld) is loaded: it has
+				// a completely different, much larger control panel (A-N
+				// tiles, Kan/Pon/Chi/Reach/Ron...) than the generic
+				// STV/STV6B JAMMA layout, so it gets its own dialog.
+				UIMahjongSetting ums( mCore, mPort, controllerId, PERCABINET, this );
+				ums.exec();
+			}
+			else if ( type == PERCABINET_HOPPER || yabsys.stvInputType == PATOCAR || yabsys.stvInputType == MICROMBC )
 			{
 				// "Hopper Cabinet" was picked explicitly, or a hopper game
 				// (patocar/skychal/supgoal/techbowl/micrombc) is loaded:
