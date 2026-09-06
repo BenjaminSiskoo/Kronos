@@ -32,6 +32,12 @@
 // Real types top out at PERCABINET (0xFF), so 0x100 can't collide.
 #define PERCABINET_HOPPER (PERCABINET | 0x100)
 
+// Same idea as PERCABINET_HOPPER above, but for the Sega Mahjong Panel
+// (kiwames/vmahjong/myfairld) - opens UIMahjongSetting instead. Also
+// normalized back down to PERCABINET before being persisted (see
+// mSettingsMahjongUI).
+#define PERCABINET_MAHJONG (PERCABINET | 0x200)
+
 class UIPortManager : public QGroupBox, public Ui::UIPortManager
 {
 	Q_OBJECT
@@ -40,6 +46,7 @@ public:
 	static const QString mSettingsKey;
 	static const QString mSettingsType;
 	static const QString mSettingsHopperUI; // UI-only: was "Hopper Cabinet" picked for this slot?
+	static const QString mSettingsMahjongUI; // UI-only: was "Mahjong Panel" picked for this slot?
 
 	UIPortManager( QWidget* parent = 0 );
 	virtual ~UIPortManager();
