@@ -159,6 +159,14 @@ void YabauseThread::reloadControllers()
                                 case PERCABINET:
                                 {
                                   PerCab_struct* padbits = PerCabAdd( NULL );
+                                  // Mahjong Panel games (kiwames/vmahjong/myfairld) store their
+                                  // PERMAHJONG_* bindings under this same PERCABINET bucket
+                                  // (see UIMahjongSetting) - connect the panel too and route
+                                  // each key to whichever controller it actually belongs to.
+                                  // (PERMAHJONG_FIRST, not PERMAHJONG_A, is the true lower
+                                  // bound of that id range - see peripheral.h.)
+                                  const bool isMahjong = ( yabsys.stvInputType == STVMP || yabsys.stvInputType == VMAHJONG || yabsys.stvInputType == MYFAIRLD );
+                                  PerMahjongPanel_struct* mjbits = isMahjong ? PerMahjongAdd( NULL ) : NULL;
                                   settings->beginGroup( QString( "Input/Port/%1/Id/%2/Controller/%3/Key" ).arg( port ).arg( id ).arg( type ) );
                                   QStringList padKeys = settings->childKeys();
 				  settings->endGroup();
@@ -166,7 +174,8 @@ void YabauseThread::reloadControllers()
                                   foreach ( const QString& padKey, padKeys )
 				  {
 				    const QString key = settings->value( QString( UIPortManager::mSettingsKey ).arg( port ).arg( id ).arg( type ).arg( padKey ) ).toString();
-				    PerSetKey( key.toUInt(), padKey.toUInt(), padbits );
+				    void* controller = ( isMahjong && padKey.toUInt() >= PERMAHJONG_FIRST ) ? (void*)mjbits : (void*)padbits;
+				    PerSetKey( key.toUInt(), padKey.toUInt(), controller );
 				  }
                                   break;
                                 }
