@@ -29,8 +29,10 @@
 #include "../CommonDialogs.h"
 #include "UIYabause.h"
 #include <QVBoxLayout>
-#include <QSplitter>
+#include <QBoxLayout>
+#include <QGridLayout>
 #include <QPushButton>
+#include <QMetaObject>
 #include <sstream>
 #include <iomanip>
 
@@ -49,17 +51,62 @@ static int SCSPDSPDis(void *context, u32 addr, char *string)
    return 1;
 }
 
-// Callback de breakpoint -- appelé depuis le thread audio (boucle
-// d'exécution DSP par échantillon dans scsp.c / ScspDspCheckBreakpoints).
-// On ne fait qu'émettre un signal Qt, exactement comme pour M68K/SCU DSP :
-// c'est UIYabause::breakpointHandlerSCSPDSP() (thread UI) qui se charge
-// de verrouiller l'émulateur et d'ouvrir la fenêtre.
+// Callback de breakpoint, appelé depuis le thread SCSP (Kronos exécute le SCSP
+// sur son propre thread, YAB_THREAD_SCSP / ScspAsynMainCpu ; le DSP est parcouru
+// pas à pas par échantillon dans scsp.c, qui appelle ScspDspCheckBreakpoints).
+//
+// BUG CORRIGE : le code faisait "emit ui->breakpointHandlerSCSPDSP()". Or
+// breakpointHandlerSCSPDSP est un *slot*, pas un signal, et "emit" est une macro
+// vide : c'était donc un appel direct, depuis le thread SCSP, d'une fonction qui
+// finit par construire et exécuter un QDialog. Toucher un widget hors du thread
+// GUI est interdit par Qt et fait tôt ou tard planter l'émulateur. UIDebugM68K et
+// UIDebugSCUDSP utilisent la même formulation, mais chez eux le callback part du
+// thread d'émulation, ce qui masque le problème.
+//
+// QMetaObject::invokeMethod(..., Qt::QueuedConnection) poste l'appel dans la file
+// d'événements du thread auquel appartient la fenêtre principale : le handler
+// s'exécute bien côté UI, et le thread SCSP repart immédiatement.
 static void SCSPDSPBreakpointHandler(u32 addr)
 {
    (void)addr;
    UIYabause *ui = QtYabause::mainWindow(false);
    if (ui)
-      emit ui->breakpointHandlerSCSPDSP();
+      QMetaObject::invokeMethod(ui, "breakpointHandlerSCSPDSP", Qt::QueuedConnection);
+}
+
+// BUG CORRIGE : les onglets supplémentaires et le bouton d'export étaient ajoutés
+// via "if (QVBoxLayout *vl = qobject_cast<QVBoxLayout*>(layout()))", avec une
+// branche else qui créait un QSplitter... jamais inséré dans le moindre layout.
+// Si UIDebugCPU.ui changeait de type de layout racine, les widgets devenaient
+// donc purement et simplement invisibles, sans le moindre message. On ajoute
+// désormais au layout réellement présent, quel qu'il soit.
+static void addToDialogLayout(QDialog *dlg, QWidget *w)
+{
+   QLayout *l = dlg->layout();
+
+   if (QBoxLayout *bl = qobject_cast<QBoxLayout*>(l))
+   {
+      bl->addWidget(w);
+      return;
+   }
+
+   if (QGridLayout *gl = qobject_cast<QGridLayout*>(l))
+   {
+      const int cols = gl->columnCount() > 0 ? gl->columnCount() : 1;
+      gl->addWidget(w, gl->rowCount(), 0, 1, cols);
+      return;
+   }
+
+   if (l)
+   {
+      l->addWidget(w);
+      return;
+   }
+
+   // Aucun layout du tout : on en crée un, sinon le widget resterait à la
+   // position (0,0) et de taille nulle.
+   QVBoxLayout *vl = new QVBoxLayout(dlg);
+   vl->addWidget(w);
 }
 
 UIDebugSCSPDSP::UIDebugSCSPDSP( YabauseThread *mYabauseThread, QWidget* p )
@@ -127,12 +174,7 @@ UIDebugSCSPDSP::UIDebugSCSPDSP( YabauseThread *mYabauseThread, QWidget* p )
    m_tabExtra->addTab(m_pteTemp,      "TEMP");
    m_tabExtra->addTab(m_pteMems,      "MEMS / MIXS / EFREG");
 
-   if (QVBoxLayout *vl = qobject_cast<QVBoxLayout*>(layout())) {
-      vl->addWidget(m_tabExtra);
-   } else {
-      QSplitter *split = new QSplitter(Qt::Vertical, this);
-      split->addWidget(m_tabExtra);
-   }
+   addToDialogLayout(this, m_tabExtra);
 
    connect(m_tabExtra, &QTabWidget::currentChanged, this, &UIDebugSCSPDSP::onTabChanged);
 
@@ -152,8 +194,7 @@ UIDebugSCSPDSP::UIDebugSCSPDSP( YabauseThread *mYabauseThread, QWidget* p )
             if (ScspSaveFullDebugReport(s.toLatin1()) != 0)
                CommonDialogs::error(QtYabause::translate("An error occured while writing file."));
       });
-      if (QVBoxLayout *vl = qobject_cast<QVBoxLayout*>(layout()))
-         vl->addWidget(pbExportFullReport);
+      addToDialogLayout(this, pbExportFullReport);
    }
 
    // Breakpoints existants + branchement disassembleur/step
