@@ -35,6 +35,7 @@ private:
    QCheckBox *checkbox[24];
    QTimer *timer;
    QColor envelope_colors[4];
+   QColor colorForEnvelopeState(int state) const;
 public:
    UIDebugSCSPChan(QWidget* parent = 0);
    ~UIDebugSCSPChan();
