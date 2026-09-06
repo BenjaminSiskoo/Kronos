@@ -145,6 +145,52 @@ PerBaseConfig_struct percabinetbaseconfig[] = {
 	{ PERJAMMA_TRACKBALL_RIGHT, PERCB(PerCabTrackballRightPressed), PERCB(PerCabTrackballRightReleased), NULL, NULL },
 };
 
+PerBaseConfig_struct permahjongbaseconfig[] = {
+	{ PERMAHJONG_KAN, PERCB(PerMahjongP1KanPressed), PERCB(PerMahjongP1KanReleased), NULL, NULL },
+	{ PERMAHJONG_START, PERCB(PerMahjongP1StartPressed), PERCB(PerMahjongP1StartReleased), NULL, NULL },
+	{ PERMAHJONG_E, PERCB(PerMahjongP1EPressed), PERCB(PerMahjongP1EReleased), NULL, NULL },
+	{ PERMAHJONG_A, PERCB(PerMahjongP1APressed), PERCB(PerMahjongP1AReleased), NULL, NULL },
+	{ PERMAHJONG_M, PERCB(PerMahjongP1MPressed), PERCB(PerMahjongP1MReleased), NULL, NULL },
+	{ PERMAHJONG_I, PERCB(PerMahjongP1IPressed), PERCB(PerMahjongP1IReleased), NULL, NULL },
+	{ PERMAHJONG_REACH, PERCB(PerMahjongP1ReachPressed), PERCB(PerMahjongP1ReachReleased), NULL, NULL },
+	{ PERMAHJONG_BET, PERCB(PerMahjongP1BetPressed), PERCB(PerMahjongP1BetReleased), NULL, NULL },
+	{ PERMAHJONG_F, PERCB(PerMahjongP1FPressed), PERCB(PerMahjongP1FReleased), NULL, NULL },
+	{ PERMAHJONG_B, PERCB(PerMahjongP1BPressed), PERCB(PerMahjongP1BReleased), NULL, NULL },
+	{ PERMAHJONG_N, PERCB(PerMahjongP1NPressed), PERCB(PerMahjongP1NReleased), NULL, NULL },
+	{ PERMAHJONG_J, PERCB(PerMahjongP1JPressed), PERCB(PerMahjongP1JReleased), NULL, NULL },
+	{ PERMAHJONG_RON, PERCB(PerMahjongP1RonPressed), PERCB(PerMahjongP1RonReleased), NULL, NULL },
+	{ PERMAHJONG_G, PERCB(PerMahjongP1GPressed), PERCB(PerMahjongP1GReleased), NULL, NULL },
+	{ PERMAHJONG_C, PERCB(PerMahjongP1CPressed), PERCB(PerMahjongP1CReleased), NULL, NULL },
+	{ PERMAHJONG_CHI, PERCB(PerMahjongP1ChiPressed), PERCB(PerMahjongP1ChiReleased), NULL, NULL },
+	{ PERMAHJONG_K, PERCB(PerMahjongP1KPressed), PERCB(PerMahjongP1KReleased), NULL, NULL },
+	{ PERMAHJONG_H, PERCB(PerMahjongP1HPressed), PERCB(PerMahjongP1HReleased), NULL, NULL },
+	{ PERMAHJONG_D, PERCB(PerMahjongP1DPressed), PERCB(PerMahjongP1DReleased), NULL, NULL },
+	{ PERMAHJONG_PON, PERCB(PerMahjongP1PonPressed), PERCB(PerMahjongP1PonReleased), NULL, NULL },
+	{ PERMAHJONG_L, PERCB(PerMahjongP1LPressed), PERCB(PerMahjongP1LReleased), NULL, NULL },
+	{ PERMAHJONG_FLIP_FLOP, PERCB(PerMahjongP1FlipFlopPressed), PERCB(PerMahjongP1FlipFlopReleased), NULL, NULL },
+	{ PERMAHJONG_P2_KAN, PERCB(PerMahjongP2KanPressed), PERCB(PerMahjongP2KanReleased), NULL, NULL },
+	{ PERMAHJONG_P2_START, PERCB(PerMahjongP2StartPressed), PERCB(PerMahjongP2StartReleased), NULL, NULL },
+	{ PERMAHJONG_P2_E, PERCB(PerMahjongP2EPressed), PERCB(PerMahjongP2EReleased), NULL, NULL },
+	{ PERMAHJONG_P2_A, PERCB(PerMahjongP2APressed), PERCB(PerMahjongP2AReleased), NULL, NULL },
+	{ PERMAHJONG_P2_M, PERCB(PerMahjongP2MPressed), PERCB(PerMahjongP2MReleased), NULL, NULL },
+	{ PERMAHJONG_P2_I, PERCB(PerMahjongP2IPressed), PERCB(PerMahjongP2IReleased), NULL, NULL },
+	{ PERMAHJONG_P2_REACH, PERCB(PerMahjongP2ReachPressed), PERCB(PerMahjongP2ReachReleased), NULL, NULL },
+	{ PERMAHJONG_P2_F, PERCB(PerMahjongP2FPressed), PERCB(PerMahjongP2FReleased), NULL, NULL },
+	{ PERMAHJONG_P2_B, PERCB(PerMahjongP2BPressed), PERCB(PerMahjongP2BReleased), NULL, NULL },
+	{ PERMAHJONG_P2_N, PERCB(PerMahjongP2NPressed), PERCB(PerMahjongP2NReleased), NULL, NULL },
+	{ PERMAHJONG_P2_J, PERCB(PerMahjongP2JPressed), PERCB(PerMahjongP2JReleased), NULL, NULL },
+	{ PERMAHJONG_P2_RON, PERCB(PerMahjongP2RonPressed), PERCB(PerMahjongP2RonReleased), NULL, NULL },
+	{ PERMAHJONG_P2_G, PERCB(PerMahjongP2GPressed), PERCB(PerMahjongP2GReleased), NULL, NULL },
+	{ PERMAHJONG_P2_C, PERCB(PerMahjongP2CPressed), PERCB(PerMahjongP2CReleased), NULL, NULL },
+	{ PERMAHJONG_P2_CHI, PERCB(PerMahjongP2ChiPressed), PERCB(PerMahjongP2ChiReleased), NULL, NULL },
+	{ PERMAHJONG_P2_K, PERCB(PerMahjongP2KPressed), PERCB(PerMahjongP2KReleased), NULL, NULL },
+	{ PERMAHJONG_P2_H, PERCB(PerMahjongP2HPressed), PERCB(PerMahjongP2HReleased), NULL, NULL },
+	{ PERMAHJONG_P2_D, PERCB(PerMahjongP2DPressed), PERCB(PerMahjongP2DReleased), NULL, NULL },
+	{ PERMAHJONG_P2_PON, PERCB(PerMahjongP2PonPressed), PERCB(PerMahjongP2PonReleased), NULL, NULL },
+	{ PERMAHJONG_P2_L, PERCB(PerMahjongP2LPressed), PERCB(PerMahjongP2LReleased), NULL, NULL },
+	{ PERMAHJONG_P2_FLIP_FLOP, PERCB(PerMahjongP2FlipFlopPressed), PERCB(PerMahjongP2FlipFlopReleased), NULL, NULL },
+};
+
 PerBaseConfig_struct permousebaseconfig[] = {
 	{ PERMOUSE_LEFT, PERCB(PerMouseLeftPressed), PERCB(PerMouseLeftReleased), NULL, NULL },
 	{ PERMOUSE_MIDDLE, PERCB(PerMouseMiddlePressed), PERCB(PerMouseMiddleReleased), NULL, NULL },
@@ -251,6 +297,81 @@ void PerTrackballExec(void) {
     IOPORT_COUNTER[TRACKBALL_Y] -= TRACKBALL_STEP;
 }
 
+/* Sega Mahjong Panel row-scan matrix: one global MJPORT[] byte per row,
+   active-low like IOPORT[]. Rows 0-4 are P1's KEY0-KEY4, rows 5-9 are
+   P2's KEY0-KEY4 (kiwames only - vmahjong/myfairld never select them).
+   See PerMahjongAdd()/PerMahjongPanelRead() and
+   PerMahjongPanelEnabled()/IOPortReadByte()/IOPortWriteByte() below. */
+static u8 MJPORT[10];
+static u8 mj_mux_data = 0; /* row-select bits, already normalized (1 = row selected) */
+
+/* Each button is just "clear/set bit `bit` of mux row `row`", exactly
+   like PerCab's PORT_x bit twiddling above - a macro avoids 86 near-
+   identical hand-written functions for the panel's tile/action buttons. */
+#define DEFINE_MAHJONG_BUTTON(func, row, bit) \
+void func##Pressed(PerMahjongPanel_struct * mj) { \
+   mj[row] &= ~(0x1 << (bit)); \
+} \
+void func##Released(PerMahjongPanel_struct * mj) { \
+   mj[row] |= (0x1 << (bit)); \
+}
+
+DEFINE_MAHJONG_BUTTON(PerMahjongP1Kan, 0, 0)
+DEFINE_MAHJONG_BUTTON(PerMahjongP1Start, 0, 1)
+DEFINE_MAHJONG_BUTTON(PerMahjongP1E, 0, 4)
+DEFINE_MAHJONG_BUTTON(PerMahjongP1A, 0, 5)
+DEFINE_MAHJONG_BUTTON(PerMahjongP1M, 0, 6)
+DEFINE_MAHJONG_BUTTON(PerMahjongP1I, 0, 7)
+DEFINE_MAHJONG_BUTTON(PerMahjongP1Reach, 1, 0)
+DEFINE_MAHJONG_BUTTON(PerMahjongP1Bet, 1, 1)
+DEFINE_MAHJONG_BUTTON(PerMahjongP1F, 1, 4)
+DEFINE_MAHJONG_BUTTON(PerMahjongP1B, 1, 5)
+DEFINE_MAHJONG_BUTTON(PerMahjongP1N, 1, 6)
+DEFINE_MAHJONG_BUTTON(PerMahjongP1J, 1, 7)
+DEFINE_MAHJONG_BUTTON(PerMahjongP1Ron, 2, 0)
+DEFINE_MAHJONG_BUTTON(PerMahjongP1G, 2, 4)
+DEFINE_MAHJONG_BUTTON(PerMahjongP1C, 2, 5)
+DEFINE_MAHJONG_BUTTON(PerMahjongP1Chi, 2, 6)
+DEFINE_MAHJONG_BUTTON(PerMahjongP1K, 2, 7)
+DEFINE_MAHJONG_BUTTON(PerMahjongP1H, 3, 4)
+DEFINE_MAHJONG_BUTTON(PerMahjongP1D, 3, 5)
+DEFINE_MAHJONG_BUTTON(PerMahjongP1Pon, 3, 6)
+DEFINE_MAHJONG_BUTTON(PerMahjongP1L, 3, 7)
+DEFINE_MAHJONG_BUTTON(PerMahjongP1FlipFlop, 4, 6)
+DEFINE_MAHJONG_BUTTON(PerMahjongP2Kan, 5, 0)
+DEFINE_MAHJONG_BUTTON(PerMahjongP2Start, 5, 1)
+DEFINE_MAHJONG_BUTTON(PerMahjongP2E, 5, 4)
+DEFINE_MAHJONG_BUTTON(PerMahjongP2A, 5, 5)
+DEFINE_MAHJONG_BUTTON(PerMahjongP2M, 5, 6)
+DEFINE_MAHJONG_BUTTON(PerMahjongP2I, 5, 7)
+DEFINE_MAHJONG_BUTTON(PerMahjongP2Reach, 6, 0)
+DEFINE_MAHJONG_BUTTON(PerMahjongP2F, 6, 4)
+DEFINE_MAHJONG_BUTTON(PerMahjongP2B, 6, 5)
+DEFINE_MAHJONG_BUTTON(PerMahjongP2N, 6, 6)
+DEFINE_MAHJONG_BUTTON(PerMahjongP2J, 6, 7)
+DEFINE_MAHJONG_BUTTON(PerMahjongP2Ron, 7, 0)
+DEFINE_MAHJONG_BUTTON(PerMahjongP2G, 7, 4)
+DEFINE_MAHJONG_BUTTON(PerMahjongP2C, 7, 5)
+DEFINE_MAHJONG_BUTTON(PerMahjongP2Chi, 7, 6)
+DEFINE_MAHJONG_BUTTON(PerMahjongP2K, 7, 7)
+DEFINE_MAHJONG_BUTTON(PerMahjongP2H, 8, 4)
+DEFINE_MAHJONG_BUTTON(PerMahjongP2D, 8, 5)
+DEFINE_MAHJONG_BUTTON(PerMahjongP2Pon, 8, 6)
+DEFINE_MAHJONG_BUTTON(PerMahjongP2L, 8, 7)
+DEFINE_MAHJONG_BUTTON(PerMahjongP2FlipFlop, 9, 6)
+
+#undef DEFINE_MAHJONG_BUTTON
+
+static int PerMahjongPanelEnabled(void) {
+  return (yabsys.stvInputType == STVMP) || (yabsys.stvInputType == VMAHJONG) ||
+         (yabsys.stvInputType == MYFAIRLD);
+}
+
+PerMahjongPanel_struct * PerMahjongAdd(PortData_struct * port) {
+  PerUpdateConfig(permahjongbaseconfig, sizeof(permahjongbaseconfig) / sizeof(PerBaseConfig_struct), MJPORT);
+  return MJPORT;
+}
+
 static int PerHopperEnabled(void) {
   return (yabsys.stvInputType == PATOCAR) || (yabsys.stvInputType == MICROMBC);
 }
@@ -332,6 +453,20 @@ static void IOPortReleased(int key) {
 }
 
 
+/* Mahjong Panel row-scan read: ANDs together every MJPORT[player*5+row] row
+   currently selected by mj_mux_data (as written to PORT-E, offset 0x09,
+   below), exactly like MAME's stvmp_ioga_r(). Active-low, so a deselected
+   row (0xff) never masks out a selected one. */
+static u8 PerMahjongPanelRead(int player) {
+   u8 val = 0xff;
+   int i;
+   for (i = 0; i < 5; i++) {
+      if (mj_mux_data & (0x1 << i))
+         val &= MJPORT[player * 5 + i];
+   }
+   return val;
+}
+
 u8 FASTCALL IOPortReadByte(SH2_struct *context, UNUSED u8* memory,  u32 addr)
 {
 /*
@@ -358,11 +493,17 @@ u8 FASTCALL IOPortReadByte(SH2_struct *context, UNUSED u8* memory,  u32 addr)
    u8 val = 0x0;
    switch(addr) {
      case 0x01: // P1
+       if (PerMahjongPanelEnabled()) {
+         val = PerMahjongPanelRead(0);
+         break;
+       }
        val = IOPORT[PORT_A];
        if (hopper_test_override && PerHopperEnabled())
          val |= HOPPER_SENSOR_MASK; // force the sensor line active, like a held "Sensor Test" input
        break;
-     case 0x03: val = IOPORT[PORT_B]; break; // P2
+     case 0x03: // P2
+       val = PerMahjongPanelEnabled() ? PerMahjongPanelRead(1) : IOPORT[PORT_B];
+       break;
      case 0x05: val = IOPORT[PORT_C]; break; // SYSTEM //Return press status like declared in stv.cpp
      case 0x07: val = m_system_output; break; // port D, read-backs value written
      case 0x09: val = IOPORT[PORT_E]; break; // P3
@@ -398,9 +539,14 @@ void FASTCALL IOPortWriteByte(SH2_struct *context, UNUSED u8* memory,UNUSED u32 
       m_system_output = val;
       PerHopperMotorWrite(val);
       break;
-    case 0x09: IOPORT[PORT_F] = val;
-               IOPORT[PORT_G] = val;
-               break; // P3
+    case 0x09: // P3 / Mahjong Panel row select
+      if (PerMahjongPanelEnabled()) {
+        mj_mux_data = val ^ 0xff; // active-low on the real mux register, like MAME's stvmp_ioga_w()
+        break;
+      }
+      IOPORT[PORT_F] = val;
+      IOPORT[PORT_G] = val;
+      break;
     case 0x0b: IOPORT[PORT_E] = val; break; // P4
     case 0x0d:
       //port-g
@@ -1718,6 +1864,12 @@ void PerPortReset(void)
 
         IOPORT_COUNTER[0] = IOPORT_COUNTER[1] = IOPORT_COUNTER[2] = IOPORT_COUNTER[3] = 0;
         trackball_up = trackball_down = trackball_left = trackball_right = 0;
+
+        /* Mahjong Panel rows are pull-up too, and no row is selected until
+           the game writes PORT-E for the first time. */
+        for (i=0; i<10; i++)
+          MJPORT[i] = 0xFF;
+        mj_mux_data = 0;
 
 	perkeyconfigsize = 0;
         if (perkeyconfig)
