@@ -40,8 +40,12 @@ private:
 	QAudioFormat audioFormat;
 	bool isPlaying;
 
+	// Alloues avec new[] dans stateChanged() : doivent donc etre liberes
+	// avec delete[] (cf. freeAudioBuffers()) -- l'ancien code faisait
+	// "delete", ce qui est un comportement indefini sur un tableau.
 	u32 *slot_workbuf;
 	s16 *slot_buf;
+	int slot_buf_samples;   // taille reelle de slot_buf, en echantillons s16
 #endif
 
 public:
@@ -51,6 +55,11 @@ public:
 private:
 	void refreshWatchList();
 	void refreshSlotInfo();
+	void refreshCommonRegisters();
+	void updateWatchGroupTitle();
+#ifdef HAVE_QT_MULTIMEDIA
+	void freeAudioBuffers();
+#endif
 
 #ifdef HAVE_QT_MULTIMEDIA
 protected:
