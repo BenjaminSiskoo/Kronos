@@ -89,17 +89,69 @@ void UIDebugSCSPChan::paintEvent(QPaintEvent *event)
 
    QRect rect;
 
+   // Legende des couleurs (etait absente : impossible de savoir ce que
+   // chaque couleur signifie sans lire le code source).
+   painter.setPen(Qt::black);
+   painter.drawText(8, start_y + 10, "Slot");
+   {
+      struct { const char *label; QColor color; } legend[] = {
+         { "Attack",  envelope_colors[0] },
+         { "Decay1",  envelope_colors[1] },
+         { "Decay2",  envelope_colors[2] },
+         { "Release", envelope_colors[3] },
+      };
+      int ly = (int)(start_y + max_height + 24);
+      int lx = start_x;
+      for (auto &l : legend)
+      {
+         painter.fillRect(QRect(lx, ly, 10, 10), l.color);
+         painter.setPen(Qt::black);
+         painter.drawText(lx + 14, ly + 9, l.label);
+         lx += 90;
+      }
+      painter.drawText(lx, ly + 9, "(barre grise = slot inactif)");
+   }
+
    for (int i = 0; i < 32; i++)
    {
       int env = 0, state = 0;
       scsp_debug_get_envelope(i, &env, &state);
 
       double env_ratio = (1023.0 - env)/1023.0;
-      rect = QRect(start_x + space + (i * channel_width), 8, channel_width, (int)(max_height * env_ratio));
-      painter.setPen(envelope_colors[state]);
+      int bar_x = start_x + space + (i * channel_width);
+      rect = QRect(bar_x, 8, channel_width, (int)(max_height * env_ratio));
+      painter.setPen(colorForEnvelopeState(state));
       painter.drawRect(rect);
+
+      // Numero du slot sous chaque barre (etait absent : impossible de
+      // savoir quelle barre correspond a quel slot sans compter a la main).
+      painter.setPen(Qt::black);
+      painter.save();
+      QFont f = painter.font();
+      f.setPointSize(6);
+      painter.setFont(f);
+      painter.drawText(QRect(bar_x - 2, (int)(start_y + max_height + 2), channel_width + 4, 12),
+                        Qt::AlignHCenter, QString::number(i));
+      painter.restore();
+
       space += spacer;
    }
+}
+
+// BUG CORRIGE : le code indexait directement envelope_colors[state] avec
+// la valeur brute de l'enum EnvelopeStates (ATTACK=1, DECAY1=2, DECAY2=3,
+// RELEASE=4), alors que envelope_colors ne contient que 4 entrees
+// (indices 0-3). Consequences : RELEASE (etat tres frequent, note qui
+// s'eteint) lisait envelope_colors[4] -- hors du tableau, comportement
+// indefini -- et toutes les autres phases affichaient la couleur de la
+// phase suivante (decalage d'un cran). Un slot jamais joue (envelope=0,
+// etat par defaut apres reset) affichait en plus la meme couleur que
+// ATTACK, le rendant indiscernable d'un slot reellement actif.
+QColor UIDebugSCSPChan::colorForEnvelopeState(int state) const
+{
+   if (state < 1 || state > 4)
+      return Qt::darkGray; // slot inactif / jamais joue depuis le reset
+   return envelope_colors[state - 1];
 }
 
 void UIDebugSCSPChan::update_window()
@@ -112,7 +164,7 @@ void UIDebugSCSPChan::update_window()
       int muted = 0;
       scsp_debug_instrument_get_data(i, &sa, &muted);
       
-      address.sprintf("%05X", sa);
+      address = QString::asprintf("%05X", sa);
 
       checkbox[i]->setText(address);
 
