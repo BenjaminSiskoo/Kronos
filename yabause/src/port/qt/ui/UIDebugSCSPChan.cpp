@@ -74,6 +74,8 @@ UIDebugSCSPChan::~UIDebugSCSPChan()
 
 void UIDebugSCSPChan::paintEvent(QPaintEvent *event)
 {
+   Q_UNUSED(event);
+
    QPainter painter(this);
 
    painter.setRenderHint(QPainter::Antialiasing);
@@ -90,15 +92,17 @@ void UIDebugSCSPChan::paintEvent(QPaintEvent *event)
    QRect rect;
 
    // Legende des couleurs (etait absente : impossible de savoir ce que
-   // chaque couleur signifie sans lire le code source).
+   // chaque couleur signifie sans lire le code source). Les libelles passent
+   // maintenant par QtYabause::translate() comme le reste de l'interface : ils
+   // etaient ecrits en dur, et melangeaient en plus anglais et francais.
    painter.setPen(Qt::black);
-   painter.drawText(8, start_y + 10, "Slot");
+   painter.drawText(8, start_y + 10, QtYabause::translate("Slot"));
    {
-      struct { const char *label; QColor color; } legend[] = {
-         { "Attack",  envelope_colors[0] },
-         { "Decay1",  envelope_colors[1] },
-         { "Decay2",  envelope_colors[2] },
-         { "Release", envelope_colors[3] },
+      struct { QString label; QColor color; } legend[] = {
+         { QtYabause::translate("Attack"),  envelope_colors[0] },
+         { QtYabause::translate("Decay 1"), envelope_colors[1] },
+         { QtYabause::translate("Decay 2"), envelope_colors[2] },
+         { QtYabause::translate("Release"), envelope_colors[3] },
       };
       int ly = (int)(start_y + max_height + 24);
       int lx = start_x;
@@ -109,7 +113,8 @@ void UIDebugSCSPChan::paintEvent(QPaintEvent *event)
          painter.drawText(lx + 14, ly + 9, l.label);
          lx += 90;
       }
-      painter.drawText(lx, ly + 9, "(barre grise = slot inactif)");
+      painter.fillRect(QRect(lx, ly, 10, 10), Qt::darkGray);
+      painter.drawText(lx + 14, ly + 9, QtYabause::translate("Inactive slot"));
    }
 
    for (int i = 0; i < 32; i++)
@@ -119,8 +124,12 @@ void UIDebugSCSPChan::paintEvent(QPaintEvent *event)
 
       double env_ratio = (1023.0 - env)/1023.0;
       int bar_x = start_x + space + (i * channel_width);
+      // La barre etait dessinee en simple contour : a 16 pixels de large la
+      // couleur de phase etait a peine visible. On remplit, en gardant un
+      // contour sombre pour separer deux slots voisins de meme couleur.
       rect = QRect(bar_x, 8, channel_width, (int)(max_height * env_ratio));
-      painter.setPen(colorForEnvelopeState(state));
+      painter.fillRect(rect, colorForEnvelopeState(state));
+      painter.setPen(Qt::darkGray);
       painter.drawRect(rect);
 
       // Numero du slot sous chaque barre (etait absent : impossible de
@@ -174,5 +183,8 @@ void UIDebugSCSPChan::update_window()
          scsp_debug_instrument_set_mute(sa, 0);
    }
 
-   repaint();
+   // repaint() force un redessin synchrone immediat a chaque tick du timer ;
+   // update() laisse Qt fusionner les demandes et repeindre une seule fois par
+   // cycle d'evenements, ce qui suffit largement a 20 images/s.
+   update();
 }
