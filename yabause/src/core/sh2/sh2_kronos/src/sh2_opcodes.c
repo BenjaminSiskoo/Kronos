@@ -477,23 +477,19 @@ static void SH2cmphs(SH2_struct * sh, u32 n, u32 m)
 
 //////////////////////////////////////////////////////////////////////////////
 
-/* CMP/EQ #imm,R0 — 1000 1000 iiii iiii
- *
- * SH-1/SH-2 Programming Manual (CMPIM):
- *   the 8-bit immediate is sign-extended to 32 bits before being
- *   compared with R0; T is set on equality, cleared otherwise.
- *   R0 is left unchanged. 1 cycle.
- */
 static void SH2cmpim(SH2_struct * sh, u32 i)
 {
-   s32 imm = (s32)(s8)(i & 0xFF);
+   /* CMP/EQ #imm,R0 - 10001000iiiiiiii
+    * The 8-bit immediate is sign-extended to 32 bits before the
+    * comparison (SH-1/SH-2 Programming Manual, CMPIM); the (s8) cast
+    * below is exactly the manual's 0x80 test. R0 is left unchanged. */
+   s32 imm = (s32)(s8)i;
 
-   if (sh->regs.R[0] == (u32)imm)
+   if (sh->regs.R[0] == (u32) imm)
       sh->regs.SR.part.T = 1;
    else
       sh->regs.SR.part.T = 0;
-
-   sh->regs.PC += 2;
+   sh->regs.PC+=2;
    sh->cycles++;
 }
 
