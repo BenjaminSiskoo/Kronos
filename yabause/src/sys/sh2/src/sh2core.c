@@ -49,6 +49,8 @@ void SCITransmitByte(u8);
 void enableCache(SH2_struct *ctx);
 void disableCache(SH2_struct *ctx);
 void InvalidateCache(SH2_struct *ctx);
+void PurgeCacheWays01(SH2_struct *ctx);
+void SH2HandleCCRWrite(SH2_struct *context, u32 val);
 
 static void (*SH2BlockableExec)(SH2_struct *context, u32 cycles);
 static void (*SH2StandardExec)(SH2_struct *context, u32 cycles);
@@ -1708,16 +1710,7 @@ void FASTCALL OnchipWriteByte(SH2_struct *context, u32 addr, u8 val) {
          context->onchip.SBYCR = val & 0xDF;
          return;
       case 0x092:
-         context->onchip.CCR = val & 0xCF;
-		 if (val & 0x10){
-			 InvalidateCache(context);
-		 }
-		 if ( (context->onchip.CCR & 0x01)  ){
-                         enableCache(context);
-		 }
-		 else{
-                         disableCache(context);
-		 }
+         SH2HandleCCRWrite(context, val);
          return;
       case 0x0E0:
          context->onchip.ICR = ((val & 0x1) << 8) | (context->onchip.ICR & 0xFEFF);
@@ -1862,16 +1855,7 @@ void FASTCALL OnchipWriteWord(SH2_struct *context, u32 addr, u16 val) {
             context->onchip.RSTCSR = (context->onchip.RSTCSR & 0x80) | (val & 0x60) | 0x1F;
          return;
       case 0x092:
-         context->onchip.CCR = val & 0xCF;
-		 if (val & 0x10){
-			 InvalidateCache(context);
-		 }
-		 if ( (context->onchip.CCR & 0x01)  ){
-                         enableCache(context);
-		 }
-		 else{
-                         disableCache(context);
-		 }
+         SH2HandleCCRWrite(context, val);
          return;
       case 0x0E0:
          context->onchip.ICR = val & 0x0101;
@@ -2343,6 +2327,55 @@ void CacheWriteLong(SH2_struct *context,u8* mem, u32 addr, u32 val){
   CacheWrite(context, mem, addr, val, 4);
 }
 #endif
+
+void PurgeCacheWays01(SH2_struct *ctx) {
+#ifdef USE_CACHE
+  int line, way;
+
+  if (yabsys.usecache == 0) return;
+
+  /* CCR.TW (bit 3) switches the cache to two-way mode: ways 0 and 1 stop
+     being cache and are remapped as on-chip RAM (SH7604 manual, sec. 8.2.1 /
+     table 8.2). getLRU() already honours this on allocation -- it only ever
+     returns way 2 or 3 while TW is set -- but the lookup path did not.
+
+     A hit is decided purely by tagWay[line][tag] plus the tagArray compare,
+     neither of which knows about TW, so any line still resident in way 0 or 1
+     from before the switch kept hitting. On hardware that data is no longer
+     in the cache at all and the access must go to memory. The result is a
+     read returning a pre-switch value with no bad write anywhere to blame.
+
+     Anything a game does with the 2 KB of on-chip RAM it just gained will
+     write through the same addresses, so the window is not theoretical. */
+  for (line = 0; line < 64; line++)
+    for (way = 0; way < 2; way++) {
+      u32 tag = ctx->cacheTagArray[line][way];
+      if (tag == 0) continue;   /* 0 is the "no tag" marker here */
+      SH2WriteNotify(ctx, (tag << 10) | (line << 4), 16);
+      ctx->tagWay[line][tag] = 0x4;
+      ctx->cacheTagArray[line][way] = 0x0;
+    }
+#endif
+}
+
+void SH2HandleCCRWrite(SH2_struct *context, u32 val) {
+  u32 oldCCR = context->onchip.CCR;
+
+  context->onchip.CCR = val & 0xCF;
+
+  if (val & 0x10)
+    InvalidateCache(context);
+
+  /* Only on the 0 -> 1 edge: a write that leaves TW set must not keep
+     re-purging ways that are already out of service. */
+  if ((context->onchip.CCR & 0x08) && !(oldCCR & 0x08))
+    PurgeCacheWays01(context);
+
+  if (context->onchip.CCR & 0x01)
+    enableCache(context);
+  else
+    disableCache(context);
+}
 
 void InvalidateCache(SH2_struct *ctx) {
 #ifdef USE_CACHE
