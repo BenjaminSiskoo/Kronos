@@ -2428,11 +2428,13 @@ void Cs2GetSectorNumber(void) {
 //////////////////////////////////////////////////////////////////////////////
 #define CDC_ACTSIZ_ERR  0xffffff
 
+static INLINE void CalcSectorOffsetNumber(u32 bufno, u32 *sectoffset, u32 *sectnum);
+
 void Cs2CalculateActualSize(void) {
-  u16 i;
+  u32 i;
   u32 casbufno;
-  u16 cassectoffset;
-  u16 casnumsect;
+  u32 cassectoffset;
+  u32 casnumsect;
 
 #if 0
   if (Cs2Area->status == CDB_STAT_SEEK){
@@ -2447,6 +2449,25 @@ void Cs2CalculateActualSize(void) {
   casbufno = Cs2Area->reg.CR3 >> 8;
   casnumsect = Cs2Area->reg.CR4;
 
+  if (casbufno >= MAX_SELECTORS)
+  {
+     Cs2Area->calcsize = 0;
+     doCDReport(CDB_STAT_REJECT);
+     Cs2SetIRQ(CDB_HIRQ_CMOK | CDB_HIRQ_ESEL);
+     return;
+  }
+
+  /* CDC_CalActSiz takes CDC_SPOS_END and CDC_SNUM_END (both FFFFH) for
+   * "the partition's last sector" and "from spos to the end of the
+   * partition" (ST-162 sec. 6.3). Without resolving them, idx ran from
+   * 65535 and no block was ever counted, so calcsize stayed 0 -- and
+   * CDC_GetActSiz returns exactly that, its initial value being 0
+   * (ST-162 sec. 6.4). A game taking that 0 as a word count then arms a
+   * zero-length SH2 DMA, which the SH7604 reads as the maximum count of
+   * 16,777,216 (manual sec. 9.2.3). Same failure as the zero-sector
+   * request already handled in Cs2GetSectorData, reached another way. */
+  CalcSectorOffsetNumber(casbufno, &cassectoffset, &casnumsect);
+
   if (Cs2Area->partition[casbufno].size != 0)
   {
      Cs2Area->calcsize = 0;
@@ -2459,7 +2480,9 @@ void Cs2CalculateActualSize(void) {
      for (i = 0; i < casnumsect; i++)
      {
         u32 idx = cassectoffset + i;
-        if (idx < MAX_BLOCKS && Cs2Area->partition[casbufno].block[idx])
+        if (idx >= (u32)Cs2Area->partition[casbufno].numblocks || idx >= MAX_BLOCKS)
+           break;
+        if (Cs2Area->partition[casbufno].block[idx])
            Cs2Area->calcsize += (Cs2Area->partition[casbufno].block[idx]->size / 2);
      }
   }
@@ -4799,197 +4822,5 @@ u32 Cs2GetMasterStackAdress(){ if (cdip) return cdip->msh2stack; else return 0x6
 u32 Cs2GetSlaveStackAdress(){ if (cdip) return cdip->ssh2stack; else return 0x6000E00; }
 u32 Cs2GetMasterExecutionAdress(){ if (cdip) return cdip->firstprogaddr; else return 0x06002E00; }
 u64 Cs2GetGameId(){ if (cdip) return cdip->gameid; else return 0x00; }
-
-//////////////////////////////////////////////////////////////////////////////
-
-//////////////////////////////////////////////////////////////////////////////
-// Full CD block debug report -- see cs2.h for why it lives here and who calls
-// it. Purely read-only: it never touches a register or advances the drive
-// state machine, so it is safe to call while the emulation is paused from the
-// Qt debugger.
-
-static const char *
-Cs2DebugStatusName (u8 status)
-{
-   switch (status & 0x0F)
-   {
-      case CDB_STAT_BUSY:    return "BUSY";
-      case CDB_STAT_PAUSE:   return "PAUSE";
-      case CDB_STAT_STANDBY: return "STANDBY";
-      case CDB_STAT_PLAY:    return "PLAY";
-      case CDB_STAT_SEEK:    return "SEEK";
-      case CDB_STAT_SCAN:    return "SCAN";
-      case CDB_STAT_OPEN:    return "OPEN (tray)";
-      case CDB_STAT_NODISC:  return "NODISC";
-      case CDB_STAT_RETRY:   return "RETRY";
-      case CDB_STAT_ERROR:   return "ERROR";
-      case CDB_STAT_FATAL:   return "FATAL";
-      default:               return "?";
-   }
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-int
-Cs2SaveDebugReport (const char *filename)
-{
-   FILE *fp;
-   int i;
-
-   if (filename == NULL)
-      return -1;
-
-   if (Cs2Area == NULL)
-      return -1;
-
-   if ((fp = fopen(filename, "w")) == NULL)
-      return -1;
-
-   fprintf(fp, "==================================================\n");
-   fprintf(fp, "CD block (CS2) debug report\n");
-   fprintf(fp, "==================================================\n\n");
-
-   fprintf(fp, "---- Host interface registers ----\n");
-   fprintf(fp, "HIRQ     = %04X\n", Cs2Area->reg.HIRQ);
-   fprintf(fp, "HIRQMASK = %04X\n", Cs2Area->reg.HIRQMASK);
-   fprintf(fp, "CR1      = %04X\n", Cs2Area->reg.CR1);
-   fprintf(fp, "CR2      = %04X\n", Cs2Area->reg.CR2);
-   fprintf(fp, "CR3      = %04X\n", Cs2Area->reg.CR3);
-   fprintf(fp, "CR4      = %04X\n", Cs2Area->reg.CR4);
-   fprintf(fp, "DTR      = %08X\n", Cs2Area->reg.DTR);
-   fprintf(fp, "MPEGRGB  = %04X\n", Cs2Area->reg.MPEGRGB);
-   /* Bit names as documented in the CD Communication Interface manual
-      (ST-162): CMOK/DRDY/CSCT/BFUL/PEND/DCHG/ESEL/EHST/ECPY/EFLS/SCDQ. */
-   fprintf(fp, "HIRQ flags:%s%s%s%s%s%s%s%s%s%s%s\n",
-           (Cs2Area->reg.HIRQ & 0x001) ? " CMOK" : "",
-           (Cs2Area->reg.HIRQ & 0x002) ? " DRDY" : "",
-           (Cs2Area->reg.HIRQ & 0x004) ? " CSCT" : "",
-           (Cs2Area->reg.HIRQ & 0x008) ? " BFUL" : "",
-           (Cs2Area->reg.HIRQ & 0x010) ? " PEND" : "",
-           (Cs2Area->reg.HIRQ & 0x020) ? " DCHG" : "",
-           (Cs2Area->reg.HIRQ & 0x040) ? " ESEL" : "",
-           (Cs2Area->reg.HIRQ & 0x080) ? " EHST" : "",
-           (Cs2Area->reg.HIRQ & 0x100) ? " ECPY" : "",
-           (Cs2Area->reg.HIRQ & 0x200) ? " EFLS" : "",
-           (Cs2Area->reg.HIRQ & 0x400) ? " SCDQ" : "");
-   fprintf(fp, "\n");
-
-   fprintf(fp, "---- Drive status ----\n");
-   fprintf(fp, "status        = %02X (%s)%s%s%s\n", Cs2Area->status,
-           Cs2DebugStatusName(Cs2Area->status),
-           (Cs2Area->status & CDB_STAT_PERI) ? " +PERI" : "",
-           (Cs2Area->status & CDB_STAT_TRNS) ? " +TRNS" : "",
-           (Cs2Area->status & CDB_STAT_WAIT) ? " +WAIT" : "");
-   fprintf(fp, "next status   = %02X (%s)\n", Cs2Area->nextStatus,
-           Cs2DebugStatusName(Cs2Area->nextStatus));
-   fprintf(fp, "current FAD   = %u\n", Cs2Area->FAD);
-   fprintf(fp, "play FAD      = %u\n", Cs2Area->playFAD);
-   fprintf(fp, "play end FAD  = %u\n", Cs2Area->playendFAD);
-   fprintf(fp, "track / index = %u / %u\n", Cs2Area->track, Cs2Area->index);
-   fprintf(fp, "ctrl/addr     = %02X\n", Cs2Area->ctrladdr);
-   fprintf(fp, "options       = %02X\n", Cs2Area->options);
-   fprintf(fp, "repeat        = %u / max %u\n", Cs2Area->repcnt, Cs2Area->maxrepeat);
-   fprintf(fp, "play type     = %d\n", Cs2Area->playtype);
-   /* isaudio is the single most useful line when CD-DA is silent: if it is 0
-      the block is not even feeding audio sectors to the SCSP, and the problem
-      is upstream of the sound chip. */
-   fprintf(fp, "isaudio       = %d\n", Cs2Area->isaudio);
-   fprintf(fp, "speed         = %s\n", Cs2Area->speed1x ? "1x" : "2x");
-   fprintf(fp, "disc changed  = %d\n", Cs2Area->isdiskchanged);
-   fprintf(fp, "buffer full   = %d\n", Cs2Area->isbufferfull);
-   fprintf(fp, "1 sector stored = %d\n", Cs2Area->isonesectorstored);
-   fprintf(fp, "seek to stop  = %u\n", Cs2Area->_seekToStop);
-   fprintf(fp, "last command  = %d\n", Cs2Area->_command);
-   fprintf(fp, "cart type     = %d\n", Cs2Area->carttype);
-   fprintf(fp, "\n");
-
-   fprintf(fp, "---- Authentication ----\n");
-   fprintf(fp, "satauth = %04X\n", Cs2Area->satauth);
-   fprintf(fp, "mpgauth = %04X\n", Cs2Area->mpgauth);
-   fprintf(fp, "\n");
-
-   fprintf(fp, "---- Transfer ----\n");
-   fprintf(fp, "transfer count    = %u\n", Cs2Area->transfercount);
-   fprintf(fp, "cdwnum            = %u\n", Cs2Area->cdwnum);
-   fprintf(fp, "get sector size   = %u\n", Cs2Area->getsectsize);
-   fprintf(fp, "put sector size   = %u\n", Cs2Area->putsectsize);
-   fprintf(fp, "calc size         = %u\n", Cs2Area->calcsize);
-   fprintf(fp, "info trans type   = %d\n", Cs2Area->infotranstype);
-   fprintf(fp, "data trans type   = %d\n", Cs2Area->datatranstype);
-   fprintf(fp, "data trans offset = %d\n", Cs2Area->datatransoffset);
-   fprintf(fp, "sectors to trans  = %u (pos %u, done %u)\n",
-           Cs2Area->datasectstotrans, Cs2Area->datatranssectpos,
-           Cs2Area->datanumsecttrans);
-   fprintf(fp, "partition num     = %u\n", Cs2Area->datatranspartitionnum);
-   fprintf(fp, "\n");
-
-   fprintf(fp, "---- Buffer ----\n");
-   fprintf(fp, "free blocks = %u / %d\n", Cs2Area->blockfreespace, MAX_BLOCKS);
-   fprintf(fp, "last buffer = %02X\n", Cs2Area->lastbuffer);
-   fprintf(fp, "\n");
-
-   fprintf(fp, "---- Selectors (filter -> partition) ----\n");
-   fprintf(fp, "%-3s %-10s %-10s %-5s %-5s %-6s %-6s %-9s %-9s %s\n",
-           "#", "FAD", "range", "mode", "chan", "fid", "true", "false",
-           "blocks", "part size");
-   for (i = 0; i < MAX_SELECTORS; i++)
-   {
-      const filter_struct *f = &Cs2Area->filter[i];
-      const partition_struct *part = &Cs2Area->partition[i];
-
-      /* Skip fully idle selectors, otherwise 24 empty lines bury the two or
-         three the game actually uses. */
-      if (f->FAD == 0 && f->range == 0 && f->mode == 0 &&
-          part->numblocks == 0 && part->size <= 0)
-         continue;
-
-      fprintf(fp, "%-3d %-10u %-10u %-5u %-5u %-6u %-6u %-9u %-9u %d\n",
-              i, f->FAD, f->range, f->mode, f->chan, f->fid,
-              f->condtrue, f->condfalse, part->numblocks, part->size);
-   }
-   fprintf(fp, "\n");
-
-   fprintf(fp, "---- Output connectors ----\n");
-   fprintf(fp, "CD device  = %u\n", Cs2Area->outconcddevnum);
-   fprintf(fp, "MPEG fb    = %u\n", Cs2Area->outconmpegfbnum);
-   fprintf(fp, "MPEG buf   = %u\n", Cs2Area->outconmpegbufnum);
-   fprintf(fp, "MPEG rom   = %u\n", Cs2Area->outconmpegromnum);
-   fprintf(fp, "host       = %u\n", Cs2Area->outconhostnum);
-   fprintf(fp, "\n");
-
-   fprintf(fp, "---- File system ----\n");
-   fprintf(fp, "current dir sector = %u\n", Cs2Area->curdirsect);
-   fprintf(fp, "current dir size   = %u\n", Cs2Area->curdirsize);
-   fprintf(fp, "fid offset         = %u\n", Cs2Area->curdirfidoffset);
-   fprintf(fp, "files cached       = %u\n", Cs2Area->numfiles);
-   fprintf(fp, "\n");
-
-   fprintf(fp, "---- MPEG ----\n");
-   fprintf(fp, "int mask       = %08X\n", Cs2Area->mpegintmask);
-   fprintf(fp, "action status  = %02X\n", Cs2Area->actionstatus);
-   fprintf(fp, "picture info   = %02X\n", Cs2Area->pictureinfo);
-   fprintf(fp, "audio status   = %02X\n", Cs2Area->mpegaudiostatus);
-   fprintf(fp, "video status   = %04X\n", Cs2Area->mpegvideostatus);
-   fprintf(fp, "vcounter       = %04X\n", Cs2Area->vcounter);
-   fprintf(fp, "\n");
-
-   if (cdip)
-   {
-      fprintf(fp, "---- Disc header (IP.BIN) ----\n");
-      fprintf(fp, "system     = %s\n", cdip->system);
-      fprintf(fp, "company    = %s\n", cdip->company);
-      fprintf(fp, "item num   = %s\n", cdip->itemnum);
-      fprintf(fp, "version    = %s\n", cdip->version);
-      fprintf(fp, "date       = %s\n", cdip->date);
-      fprintf(fp, "cd info    = %s\n", cdip->cdinfo);
-      fprintf(fp, "region     = %s\n", cdip->region);
-      fprintf(fp, "peripheral = %s\n", cdip->peripheral);
-      fprintf(fp, "game name  = %s\n", cdip->gamename);
-      fprintf(fp, "\n");
-   }
-
-   fclose(fp);
-   return 0;
-}
 
 //////////////////////////////////////////////////////////////////////////////
