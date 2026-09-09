@@ -34,16 +34,6 @@
           <item>
            <widget class="QSpinBox" name="sbSlotNumber"/>
           </item>
-          <item>
-           <widget class="QCheckBox" name="cbAutoRefresh">
-            <property name="toolTip">
-             <string>Periodically re-read this slot's registers and runtime state (envelope, attenuation, sample offset...) without having to change the slot number to force a refresh</string>
-            </property>
-            <property name="text">
-             <string>Auto-refresh (4x/s)</string>
-            </property>
-           </widget>
-          </item>
          </layout>
         </item>
         <item>
@@ -134,36 +124,6 @@
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout_7">
      <item>
-      <widget class="QPushButton" name="pbExportFullReport">
-       <property name="toolTip">
-        <string>Export common control registers + all 32 slots + full DSP state (registers, COEF, MADRS, TEMP, MEMS, MIXS, EFREG, EXTS) into a single text file</string>
-       </property>
-       <property name="text">
-        <string>Export Full Debug Report...</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="pbExportSoundRam">
-       <property name="toolTip">
-        <string>Dump the raw 512KB SCSP sound RAM to a binary file</string>
-       </property>
-       <property name="text">
-        <string>Export Sound RAM...</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="pbExportCs2Report">
-       <property name="toolTip">
-        <string>Export the CD block's status (play/pause/seek, current FAD, track, repeat count...) into a text file -- useful when CD-DA (redbook) music specifically is silent</string>
-       </property>
-       <property name="text">
-        <string>Export CD Block Report...</string>
-       </property>
-      </widget>
-     </item>
-     <item>
       <widget class="QDialogButtonBox" name="dbbButtons">
        <property name="standardButtons">
         <set>QDialogButtonBox::Close</set>
@@ -171,67 +131,6 @@
       </widget>
      </item>
     </layout>
-   </item>
-   <item>
-    <widget class="QGroupBox" name="gbRegisterWatch">
-     <property name="title">
-      <string>Register Write Watch</string>
-     </property>
-     <layout class="QHBoxLayout" name="horizontalLayout_8">
-      <item>
-       <widget class="QLabel" name="label_watch_addr">
-        <property name="text">
-         <string>Address (hex, e.g. 216 or 400):</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QLineEdit" name="leWatchAddress">
-        <property name="maximumWidth">
-         <number>100</number>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPushButton" name="pbWatchAdd">
-        <property name="text">
-         <string>Add</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPushButton" name="pbWatchDel">
-        <property name="text">
-         <string>Remove</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QListWidget" name="lwWatchedAddresses">
-        <property name="maximumHeight">
-         <number>70</number>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPushButton" name="pbWatchExportLog">
-        <property name="toolTip">
-         <string>Export every logged write to any watched address, with the M68K PC at the time of each write</string>
-        </property>
-        <property name="text">
-         <string>Export Log...</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPushButton" name="pbWatchClearLog">
-        <property name="text">
-         <string>Clear Log</string>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </widget>
    </item>
   </layout>
  </widget>
