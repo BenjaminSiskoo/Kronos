@@ -23,7 +23,6 @@
 
 #include "core.h"
 #include "sh2core.h"
-#include <stddef.h> // size_t, for ScspGetRegisterName
 
 #ifdef __cplusplus
 extern "C" {
@@ -111,49 +110,15 @@ int ScspSlotDebugSaveRegisters(u8 slotnum, const char *filename);
 u32 ScspSlotDebugAudio (u32 *workbuf, s16 *buf, u32 len);
 void ScspSlotResetDebug(u8 slotnum);
 int ScspSlotDebugAudioSaveWav(u8 slotnum, const char *filename);
-// Export complet (registres communs + 32 slots + DSP) dans un seul fichier
-// texte, et dump binaire brut de la RAM son (0x80000 octets). Voir
-// ScspDspFullDebugStats (scspdsp.h) pour la partie DSP du rapport.
+
+/* Debug export and register watches (UIDebugSCSP) */
 int ScspSaveFullDebugReport(const char *filename);
 int ScspSaveSoundRam(const char *filename);
-
-//////////////////////////////////////////////////////////////////////////////
-// Generic SCSP register watch.
-//
-// UIDebugSCSP referenced this API but it did not exist anywhere in the core,
-// so the Qt port did not link. Implemented in scsp.c, hooked into the three
-// register write entry points (scsp_w_b / scsp_w_w / scsp_w_d), which is the
-// funnel every writer goes through -- SH2 (scsp_w_*), sound CPU (c68k_*_write)
-// and SCU DMA all end up there -- so a watch catches the write whoever issued
-// it.
-//
-// Addresses are SCSP register offsets, not absolute bus addresses: 0x000-0x3FF
-// are the 32 slot register banks (0x20 bytes each, slot n at n*0x20) and
-// 0x400-0x43F are the common control registers. For instance 0x216 is slot
-// 16's EFSDL/EFPAN (the CD-DA left channel -- see Technical Bulletin #29) and
-// 0x400 is MEM4MB/DAC18B/VER/MVOL. The DSP areas (COEF at 0x700, MADRS at
-// 0x780, MPRO at 0x800) are deliberately not watchable here: they are dumped
-// as a whole by the SCSP DSP debugger instead.
-//
-// The log is a fixed-size ring buffer: it never allocates while the emulation
-// runs and silently drops the oldest entries once full.
-#define SCSP_MAX_REGISTER_WATCHES     8
-#define SCSP_REGISTER_WATCH_MAX_ADDR  0x43F
-#define SCSP_REGISTER_WATCH_LOG_SIZE  4096
-
-// Returns 0 on success, -1 if the address is out of range, already watched, or
-// if SCSP_MAX_REGISTER_WATCHES is already reached.
+const char *ScspGetRegisterName(u32 addr);
 int ScspAddRegisterWatch(u32 addr);
 int ScspDelRegisterWatch(u32 addr);
-void ScspClearRegisterWatches(void);
 int ScspGetRegisterWatchCount(void);
-// Returns the watched address at "index" (0 .. ScspGetRegisterWatchCount()-1),
-// or 0xFFFFFFFF if the index is out of range.
 u32 ScspGetRegisterWatchAddr(int index);
-// Human readable name of a register offset ("Slot 16 EFSDL/EFPAN", "MVOL",
-// ...). Always NUL-terminated, never writes past maxlen.
-void ScspGetRegisterName(u32 addr, char *outstring, size_t maxlen);
-// Number of entries currently held in the ring buffer (<= SCSP_REGISTER_WATCH_LOG_SIZE).
 int ScspGetRegisterWatchLogCount(void);
 int ScspSaveRegisterWatchLog(const char *filename);
 void ScspClearRegisterWatchLog(void);
